@@ -1,0 +1,12 @@
+{
+  "name": "@nhchat/web",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/demo.js",
+  "dependencies": {
+    "@nhchat/core": "*",
+    "@nhchat/adapter-wasm": "*",
+    "@nhchat/skills": "*",
+    "@nhchat/agent": "*"
+  }
+}

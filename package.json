@@ -1,0 +1,25 @@
+{
+  "name": "nethack-chat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Middleware that exposes NetHack as a language-controllable environment for humans and LLM agents.",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "tsc -b",
+    "clean": "rm -rf dist packages/*/dist apps/*/dist *.tsbuildinfo packages/*/*.tsbuildinfo apps/*/*.tsbuildinfo",
+    "demo": "npm run typecheck && node apps/web/dist/demo.js",
+    "eval": "npm run typecheck && node eval/dist-harness/harness.mjs && node eval/dist-harness/acceptance.mjs",
+    "gateway": "npm run typecheck && node apps/model-gateway/dist/server.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.0"
+  }
+}
