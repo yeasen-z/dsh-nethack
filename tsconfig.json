@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/adapter-wasm" },
+    { "path": "packages/skills" },
+    { "path": "packages/agent" },
+    { "path": "apps/web" },
+    { "path": "apps/model-gateway" },
+    { "path": "eval" }
+  ]
+}
