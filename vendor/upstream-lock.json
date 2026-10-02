@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "nethack": {
+    "repository": "https://github.com/NetHack/NetHack.git",
+    "revision": "9c3a54d0473ec9ebdf8951f85af13ef63acf0a87",
+    "branchAtPin": "NetHack-5.0",
+    "licensePath": "dat/license"
+  },
+  "emsdk": {
+    "repository": "https://github.com/emscripten-core/emsdk.git",
+    "version": "4.0.23",
+    "revision": "c0bb220cb6e6f4e0fabb6f6db9efd53390ef5e56",
+    "dockerImage": "emscripten/emsdk:4.0.23",
+    "dockerDigest": "sha256:86537645c51e44899812d29820ee3b64b96c321ebb2aba4416a04ceeb1bcde62"
+  },
+  "referenceWebUi": {
+    "repository": "https://github.com/e3sh/Nethack-wasm-webUI.git",
+    "revision": "4f3f6df7ad5f3cc516f1fc2b72a623f051aa811c",
+    "licenseNote": "Package metadata declares MIT; no standalone license file was found at this pin."
+  }
+}

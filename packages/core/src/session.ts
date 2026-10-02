@@ -212,7 +212,9 @@ export class MiddlewareSession implements NetHackSession {
     }
 
     // 7. Occupancy guard for delegated movement (MVP rule, handoff section 6).
-    if (request.action.action === "move") {
+    // Human movement must still reach NetHack: moving into a monster is the
+    // normal melee command. Skills stop instead of silently starting combat.
+    if (request.source === "skill" && request.action.action === "move") {
       const target = adjacent(now.player.position, request.action.direction);
       if (now.entities.some((e) => e.kind === "monster" && e.position.x === target.x && e.position.y === target.y)) {
         return this.reject(request, "occupied_target");

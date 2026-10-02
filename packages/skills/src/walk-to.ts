@@ -263,14 +263,13 @@ export function bfsPlan(
         // reconstruct
         const path: Direction[] = [];
         let ck = k;
-        while (!samePos({ x: -1, y: -1 }, { x: -1, y: -1 })) {
+        while (true) {
           const stepInfo = prev.get(ck)!;
           path.unshift(stepInfo.d);
           const pp = stepInfo.p;
           if (samePos(pp, start)) return path;
           ck = key(pp);
         }
-        return path;
       }
       queue.push(nxt);
     }

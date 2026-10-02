@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
+.cache/
 
 # Build artifacts
 dist/
+eval/dist-harness/
 *.tsbuildinfo
+trace-*.jsonl
+apps/web/public/runtime/

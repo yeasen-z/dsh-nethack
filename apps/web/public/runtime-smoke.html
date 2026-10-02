@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NetHack WASM smoke check</title>
+    <style>
+      body { max-width: 48rem; margin: 4rem auto; padding: 0 1rem; font: 16px/1.5 system-ui, sans-serif; }
+      #result { padding: 1rem; border-radius: .5rem; background: #f2f4f7; white-space: pre-wrap; }
+      .ok { color: #137333; } .error { color: #b3261e; }
+    </style>
+  </head>
+  <body>
+    <h1>NetHack WASM smoke check</h1>
+    <p>This page checks that Chrome can download and initialize the pinned WebAssembly runtime.</p>
+    <pre id="result">Loading…</pre>
+    <script type="module">
+      const output = document.querySelector("#result");
+      try {
+        const { default: createModule } = await import("./runtime/nethack.js");
+        const module = await createModule({ noInitialRun: true, print: () => {}, printErr: () => {} });
+        const checks = {
+          wasmInitialized: module.calledRun === true,
+          gameEntryPoint: typeof module._main === "function",
+          shimCallback: typeof module._shim_graphics_set_callback === "function",
+          embeddedGameData: module.FS.analyzePath("/nhdat").exists,
+          embeddedLicense: module.FS.analyzePath("/license").exists,
+        };
+        const passed = Object.values(checks).every(Boolean);
+        output.className = passed ? "ok" : "error";
+        output.textContent = `${passed ? "PASS" : "FAIL"}\n${JSON.stringify(checks, null, 2)}\n\nThis smoke check initializes the engine without starting a game; the Worker and playable UI are still under development.`;
+      } catch (error) {
+        output.className = "error";
+        output.textContent = `FAIL\n${error?.stack ?? error}`;
+      }
+    </script>
+  </body>
+</html>

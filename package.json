@@ -4,22 +4,28 @@
   "private": true,
   "description": "Middleware that exposes NetHack as a language-controllable environment for humans and LLM agents.",
   "type": "module",
+  "packageManager": "npm@10.8.2",
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "engines": {
-    "node": ">=20"
+    "node": "20.x"
   },
   "scripts": {
     "typecheck": "tsc -b",
-    "clean": "rm -rf dist packages/*/dist apps/*/dist *.tsbuildinfo packages/*/*.tsbuildinfo apps/*/*.tsbuildinfo",
+    "clean": "node scripts/clean.mjs",
+    "runtime:fetch": "node scripts/fetch-runtime.mjs",
+    "runtime:build": "node scripts/build-runtime.mjs",
+    "runtime:verify": "node scripts/verify-runtime.mjs",
+    "bootstrap": "npm run runtime:fetch && npm run runtime:build && npm run runtime:verify && npm run typecheck",
     "demo": "npm run typecheck && node apps/web/dist/demo.js",
-    "eval": "npm run typecheck && node eval/dist-harness/harness.mjs && node eval/dist-harness/acceptance.mjs",
+    "eval": "npm run eval:fake",
+    "eval:fake": "npm run typecheck && node eval/dist-harness/harness.mjs && node eval/dist-harness/acceptance.mjs",
     "gateway": "npm run typecheck && node apps/model-gateway/dist/server.js"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.5.0"
+    "@types/node": "20.19.43",
+    "typescript": "5.9.3"
   }
 }

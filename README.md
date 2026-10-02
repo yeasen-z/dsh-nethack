@@ -39,14 +39,14 @@ Key invariants (enforced by code, not documentation):
 ```
 packages/core/          Contracts, scheduler, validation, control manager, event schema
 packages/adapter-wasm/  GameAdapter interface, input-state machine, observation mapping
-                        (real NH5.0 WASM shim bridge is the runtime-spike task - see docs/runtime-spike.md)
+                        (real NetHack shim bridge is the next integration phase)
 packages/skills/        walk_to (bounded navigation); explore_room stub with explicit gaps
 packages/agent/         Structured AgentDecision contract, provider abstraction, offline echo provider
 apps/web/               Non-UI demo host wiring the full stack together
 apps/model-gateway/     Optional provider proxy skeleton (credentials stay server-side)
 eval/                   Scripted non-visual harness + MVP acceptance checklist runner
-vendor/                 Pinned upstream revisions, build commands, license notices (to fill during spike)
-docs/                   Handoff spec, runtime spike notes, contracts, ADRs
+vendor/                 Pinned upstream revisions and license notes
+docs/                   Architecture, real runtime build, contracts, implementation plan
 ```
 
 Workspace packages use the `@nhchat/*` scope. `apps/web` imports only `@nhchat/*` public entry points - it never touches the runtime directly, satisfying the "client independence" acceptance criterion.
@@ -82,25 +82,40 @@ Interaction modes (separate from execution ownership - only one controller write
 ## 4. Quick Start
 
 ```bash
-npm install                # Node >= 20, npm >= 10
+nvm use                    # Node 20.19.5 (see .nvmrc)
+npm ci                     # npm 10.8.2; install exactly from package-lock.json
 
 npm run typecheck          # compile every package + app
 npm run eval               # scripted-client acceptance suite against the fake runtime
 npm run demo               # full vertical slice: "Walk to that door" -> walk_to -> steps -> takeover
 ```
 
-Expected demo ending (deterministic):
+To fetch and compile the pinned original NetHack 5.0 source as WASM:
 
-```
-task finished: completed
-owner: human (epoch 3)
-turn delta over whole run: 8 game turns
+```bash
+npm run bootstrap          # requires Docker/OrbStack, or set up local emsdk first
 ```
 
-**Important:** until the runtime spike lands (see below), the local demo runs against a
-small deterministic **fake NetHack-like runtime** inside the adapter package so the
-contracts can be exercised end-to-end. It is clearly labeled and must not be presented
-as a real game session in any delivered demo (MVP acceptance requires a real WASM session).
+The build artifacts go to the ignored `apps/web/public/runtime/` directory.
+Use `NETHACK_BUILD_MODE=local` with an activated Emscripten 4.0.23 SDK to build
+without Docker; details and proxy setup are in [docs/runtime-build.md](docs/runtime-build.md).
+
+Expected key results (deterministic fake runtime):
+
+```
+[PASS] delegation reached the door-adjacent tile
+task outcome after takeover: interrupted ("cancelled_by_stop")
+owner: human (epoch 4)
+human pickup -> completed: You pick up a potion (unidentified).
+```
+
+The local `demo` and acceptance suite still use the deterministic fake runtime.
+`npm run bootstrap` currently fetches, builds, and verifies the real game binary;
+the browser Worker bridge and `RealWasmAdapter` are subsequent roadmap work, so the
+binary is not yet wired into the middleware API.
+For a browser-side module-load check after building, open
+`http://127.0.0.1:4173/runtime-smoke.html` while serving `apps/web/public` as
+documented in `docs/runtime-build.md`.
 
 ## 5. Implementation Status
 
@@ -113,7 +128,8 @@ as a real game session in any delivered demo (MVP acceptance requires a real WAS
 | Event log (ordered, replayable trace JSONL) | Implemented | `packages/core/src/events.ts` |
 | WASM adapter boundary + input-state machine | Interface implemented | `GameAdapter` in `packages/adapter-wasm/src/adapter.ts` |
 | Fake runtime for contract testing | Implemented | `fake-runtime.ts` - dev/test only |
-| Real NetHack 5.0 WASM shim bridge | TODO (milestone 1) | Requires pinning upstream + browser build; plan in `docs/runtime-spike.md` |
+| Pinned NetHack 5.0 WASM build | Implemented | `npm run bootstrap`; source and toolchain pins in `vendor/upstream-lock.json` |
+| Real NetHack Worker bridge and adapter | TODO | Build/run details in `docs/runtime-build.md`; implementation plan in `docs/real-runtime-implementation-plan.md` |
 | `walk_to` skill (budgets + stop rules via `step()`) | Implemented | `packages/skills/src/walk-to.ts` |
 | `explore_room` skill | Stub | Explicit gaps documented in source; add after interruption contract proven on real runtime |
 | Agent decision contract + provider abstraction | Implemented | `packages/agent/`; OpenAI-compatible gateway skeleton ready |
@@ -123,7 +139,7 @@ as a real game session in any delivered demo (MVP acceptance requires a real WAS
 
 ## 6. Roadmap (agreed implementation order)
 
-1. **Runtime spike** - pin/build `e3sh/Nethack-wasm-webUI` (NetHack 5.0 shim), map callbacks, verify input boundaries/menus/termination, inventory accessible observations, record licenses. *(Not done in this repo yet - see `docs/runtime-spike.md`.)*
+1. **Runtime integration** - pinned official NetHack 5.0 source now builds and initializes as WASM; next map shim callbacks, input boundaries, menus, and termination in a Worker.
 2. **Contracts and adapter** - done here (schemas, four primitive actions, scripted client).
 3. **Execution core** - done here (queue, dedup, epochs, events, Stop/Take over; verified before connecting a model).
 4. **First skill** - `walk_to` done; `explore_room` gated on milestone 7 validation.
@@ -136,14 +152,14 @@ First working milestone (definition of done): *a client observes a real NetHack 
 
 ## 7. Grounding & Upstream References
 
-Checked 2026-09-30; they establish an integration direction, not proof that any field/API below exists upstream. See `docs/runtime-spike.md` for the verification checklist and `vendor/UPSTREAM.md` for pinned revisions/notices.
+Checked 2026-10-02; they establish an integration direction, not proof that any field/API below exists upstream. See `docs/runtime-build.md`, the implementation plan, and `vendor/UPSTREAM.md` for build steps and pinned notices.
 
 - [Official NetHack source](https://github.com/NetHack/NetHack) - engine + window-port code (NetHack 5.0.0)
 - [NetHack WASM WebUI](https://github.com/e3sh/Nethack-wasm-webUI) - initial integration candidate
 - [Cross-compiling doc](https://github.com/NetHack/NetHack/blob/NetHack-5.0/Cross-compiling) - runtime spike reference
 - [NLE](https://github.com/facebookresearch/nle) - later experimental adapter only; no semantic parity assumed
 
-Licenses: NetHack ships under the NetHack Community License; tilesets/assets have their own notices. Record actual files at pinned revisions before packaging decisions.
+Licenses: the pinned NetHack source includes its General Public License in the embedded `license` file. Third-party reference UI material has a separate license note in `vendor/UPSTREAM.md` and is not included in the game build.
 
 ## 8. Design Rules You Must Not Break
 

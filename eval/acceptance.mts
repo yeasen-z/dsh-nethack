@@ -118,7 +118,7 @@ async function main() {
     check("Pickup/uncertainty-preserved", pk.observation.inventory[0]?.known_properties === null);
   }
 
-  // --- Delegation: walk_to reaches known target or explicit reason ---------
+  // --- Delegation: walk_to reaches a known target --------------------------
   {
     const s4 = await createHarnessSession("acc-walkto");
     const handle = await s4.executeSkill({
@@ -133,9 +133,8 @@ async function main() {
     });
     const report = await handle.done;
     check(
-      "Delegation/walk_to-completes-or-explicit-reason",
-      (report.outcome === "completed" && report.progress.last_position!.x === 8 && report.progress.last_position!.y === 6) ||
-        (report.outcome !== "completed" && Array.isArray(report.reason)),
+      "Delegation/walk_to-completes",
+      report.outcome === "completed" && report.progress.last_position!.x === 8 && report.progress.last_position!.y === 6,
       JSON.stringify({ outcome: report.outcome, reason: report.reason }),
     );
     // blocked case: unknown target tile

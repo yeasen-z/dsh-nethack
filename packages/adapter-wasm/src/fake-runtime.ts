@@ -147,7 +147,7 @@ class FakeNetHackEngine {
     for (const row of this.grid) for (const c of row) c.visible_now = false;
     for (let dy = -4; dy <= 4; dy++) {
       for (let dx = -4; dx <= 4; dx++) {
-        if (Math.abs(dx) + Math.abs(dy) > 5) continue;
+        if (Math.abs(dx) + Math.abs(dy) > 4) continue;
         const p = { x: this.pos.x + dx, y: this.pos.y + dy };
         const c = this.cellAt(p);
         if (!c) continue;
@@ -311,7 +311,11 @@ class FakeNetHackEngine {
       const dist = Math.abs(m.pos.x - this.pos.x) + Math.abs(m.pos.y - this.pos.y);
       const c = this.cellAt(m.pos);
       const wasVisible = c?.visible_now ?? false;
-      if (dist <= 6) {
+      // Keep the fake scenario deterministic and tactically observable: a
+      // monster starts chasing only after the player has actually seen it.
+      // Hidden monsters still exist engine-side but cannot affect planning
+      // before they enter the player-visible observation.
+      if (wasVisible && dist <= 6) {
         // deterministic single-step chase using cardinal preference
         const dx = Math.sign(this.pos.x - m.pos.x);
         const dy = Math.sign(this.pos.y - m.pos.y);
@@ -327,7 +331,6 @@ class FakeNetHackEngine {
           if (this.hp <= 0) this.die(`killed by a ${m.name}`);
         }
       }
-      void wasVisible;
     }
   }
 

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NetHack Worker event probe</title>
+    <style>
+      :root { color-scheme: light dark; font: 15px/1.45 system-ui, sans-serif; }
+      body { margin: 0 auto; max-width: 76rem; padding: 1.5rem; }
+      button, input { font: inherit; padding: .45rem .7rem; }
+      button { cursor: pointer; }
+      .bar, #controls, #input-form { display: flex; gap: .55rem; flex-wrap: wrap; align-items: center; }
+      #events { height: 55vh; overflow: auto; padding: .75rem; border: 1px solid #8886; border-radius: .5rem; }
+      #events p { margin: .15rem 0; font: 12px/1.4 ui-monospace, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+      #prompt { min-height: 2rem; font-weight: 600; }
+      #response { min-width: 15rem; }
+      .muted { opacity: .72; }
+      .error { color: #d33; }
+    </style>
+  </head>
+  <body>
+    <h1>NetHack Worker event probe</h1>
+    <p>This starts the pinned NetHack engine in a module Worker. The page displays copied shim events and asks for input only when the engine reaches an input boundary.</p>
+    <div class="bar">
+      <label>Player name <input id="player-name" value="NHChat" maxlength="31" /></label>
+      <button id="start">Start game</button>
+      <span id="state" class="muted">Worker not started</span>
+    </div>
+    <section aria-live="polite">
+      <p id="prompt">Start the game to collect shim events.</p>
+      <form id="input-form" hidden>
+        <input id="response" autocomplete="off" />
+        <button type="submit">Send input</button>
+      </form>
+      <div id="controls" hidden>
+        <span>Quick keys:</span>
+        <button data-key="h">h</button><button data-key="j">j</button><button data-key="k">k</button><button data-key="l">l</button>
+        <button data-key="y">y</button><button data-key="u">u</button><button data-key="b">b</button><button data-key="n">n</button>
+        <button data-key=".">wait (.)</button><button data-key=" ">space</button>
+      </div>
+    </section>
+    <p id="glyph-count" class="muted"></p>
+    <div id="events" aria-label="Worker event log"></div>
+    <script type="module">
+      const startButton = document.querySelector("#start");
+      const nameInput = document.querySelector("#player-name");
+      const state = document.querySelector("#state");
+      const prompt = document.querySelector("#prompt");
+      const form = document.querySelector("#input-form");
+      const response = document.querySelector("#response");
+      const controls = document.querySelector("#controls");
+      const eventLog = document.querySelector("#events");
+      const glyphCount = document.querySelector("#glyph-count");
+      const rows = [];
+      let worker;
+      let pendingRequestId;
+      let seenGlyphs = 0;
+
+      function addRow(text, className = "") {
+        const row = document.createElement("p");
+        row.textContent = text;
+        if (className) row.className = className;
+        rows.push(row);
+        if (rows.length > 240) rows.shift().remove();
+        eventLog.append(row);
+        eventLog.scrollTop = eventLog.scrollHeight;
+      }
+
+      function answer(value) {
+        if (!worker || !pendingRequestId) return;
+        worker.postMessage({ type: "respond", requestId: pendingRequestId, value });
+        addRow(`> input ${JSON.stringify(value)}`);
+        pendingRequestId = undefined;
+        form.hidden = true;
+        controls.hidden = true;
+        prompt.textContent = "Input sent; waiting for the next engine boundary…";
+      }
+
+      startButton.addEventListener("click", () => {
+        if (worker) worker.terminate();
+        rows.splice(0).forEach((row) => row.remove());
+        seenGlyphs = 0;
+        pendingRequestId = undefined;
+        worker = new Worker("./runtime-probe.worker.js", { type: "module" });
+        worker.onmessage = ({ data }) => {
+          if (data.type === "started") {
+            state.textContent = `Running ${data.engine} (${data.runtimeId})`;
+            startButton.disabled = true;
+            addRow(`engine started: ${JSON.stringify(data)}`);
+          } else if (data.type === "event") {
+            if (data.name === "glyph") {
+              seenGlyphs++;
+              glyphCount.textContent = `Map glyph callbacks received: ${seenGlyphs}`;
+              if (seenGlyphs <= 4) addRow(`event ${data.sequence} ${data.name}: ${JSON.stringify(data.data)}`);
+            } else {
+              addRow(`event ${data.sequence} ${data.name}: ${JSON.stringify(data.data)}`);
+            }
+          } else if (data.type === "input_required") {
+            pendingRequestId = data.requestId;
+            prompt.textContent = `${data.prompt.label}${data.prompt.choices ? ` [${data.prompt.choices}]` : ""}`;
+            form.hidden = false;
+            controls.hidden = data.prompt.kind !== "key";
+            response.value = data.prompt.defaultValue ?? "";
+            response.placeholder = data.prompt.kind === "menu" ? "Type an option accelerator" : "Type a response or command key";
+            response.focus();
+            addRow(`input boundary: ${JSON.stringify(data.prompt)}`);
+          } else if (data.type === "ended") {
+            state.textContent = `Game ended (exit ${data.exitCode})`;
+            startButton.disabled = false;
+            prompt.textContent = "The engine has stopped.";
+            addRow(`engine ended: ${data.exitCode}`);
+          } else if (data.type === "error") {
+            state.textContent = "Worker error";
+            state.className = "error";
+            startButton.disabled = false;
+            addRow(`ERROR ${data.message}`, "error");
+          }
+        };
+        worker.onerror = (event) => {
+          state.textContent = "Worker error";
+          state.className = "error";
+          startButton.disabled = false;
+          addRow(`ERROR ${event.message}`, "error");
+        };
+        state.textContent = "Starting Worker and WASM…";
+        startButton.disabled = true;
+        worker.postMessage({ type: "start", name: nameInput.value.trim() || "NHChat" });
+      });
+
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        answer(response.value);
+      });
+      controls.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-key]");
+        if (button) answer(button.dataset.key);
+      });
+      document.addEventListener("keydown", (event) => {
+        if (!pendingRequestId || event.target === response || event.target === nameInput || event.key.length !== 1) return;
+        event.preventDefault();
+        answer(event.key);
+      });
+    </script>
+  </body>
+</html>

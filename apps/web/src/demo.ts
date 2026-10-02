@@ -91,7 +91,7 @@ async function main() {
     control_epoch: session.controlStatus.epoch,
     spec: {
       skill: "walk_to",
-      parameters: { level_id: "level-1", target: { x: 8, y: 6 } },
+      parameters: { level_id: "level-1", target: { x: 5, y: 5 } },
       constraints: { max_actions: 30 },
     },
   });
@@ -176,19 +176,31 @@ async function humanScripted(session: MiddlewareSession, epoch: number) {
     });
     console.log(`human answered direction prompt -> ${ans.status}`);
   }
-  // Walk through the opened door into the east room (two steps east).
-  let o2 = (await session.observe());
-  for (let i = 0; i < 3 && o2.player.position.x < 11; i++) {
-    const r = await session.step({
-      request_id: `hum-e${i}-${o2.state_version}`,
-      session_id: session.sessionId,
-      expected_state_version: o2.state_version,
-      control_epoch: epoch,
-      source: "human",
-      action: { action: "move", direction: "east" },
-    });
-    o2 = r.observation;
-    if (r.status !== "completed") break;
+  // Walk through the door, then approach the potion at (12,5). Retrying a
+  // coordinate is intentional: a human move into a monster performs melee,
+  // so a completed action does not necessarily change the player's position.
+  let o2 = await session.observe();
+  const waypoints = [{ x: 10, y: 6 }, { x: 10, y: 5 }, { x: 12, y: 5 }];
+  let moveSeq = 0;
+  for (const target of waypoints) {
+    let attempts = 0;
+    while ((o2.player.position.x !== target.x || o2.player.position.y !== target.y) && attempts++ < 12) {
+      const direction =
+        o2.player.position.x < target.x ? "east"
+          : o2.player.position.x > target.x ? "west"
+            : o2.player.position.y < target.y ? "south"
+              : "north";
+      const r = await session.step({
+        request_id: `hum-move-${moveSeq++}-${o2.state_version}`,
+        session_id: session.sessionId,
+        expected_state_version: o2.state_version,
+        control_epoch: epoch,
+        source: "human",
+        action: { action: "move", direction },
+      });
+      o2 = r.observation;
+      if (r.status !== "completed") break;
+    }
   }
   // Pickup on the potion tile -> auto (single item) completes.
   const pk = await session.step({
