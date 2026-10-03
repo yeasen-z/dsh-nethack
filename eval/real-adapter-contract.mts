@@ -49,6 +49,20 @@ test("observations publish only at boundaries and preserve uncertainty", async (
   adapter.terminate();
 });
 
+test("wait forces NetHack's no-op prefix so resting consumes a turn", async () => {
+  const worker = new ScriptedWorker([(_, w) => ready(w), (message, w) => {
+    assert.equal(message.value, "m.");
+    w.boundary("command-after-rest", "command");
+  }]);
+  const adapter = new RealWasmAdapter(() => worker);
+  await adapter.start("session");
+  const result = await adapter.deliver({ action: "wait" });
+  assert.equal(result.committed, true);
+  assert.equal(result.outcome, "settled");
+  assert.equal(result.observation.input.kind, "command");
+  adapter.terminate();
+});
+
 test("terrain uses pinned symbols, excludes unexplored cells, and clears maps", () => {
   const caps = new RealWasmAdapter(() => new ScriptedWorker()).capabilities;
   const builder = new ObservationBuilder("session", caps);
@@ -58,12 +72,36 @@ test("terrain uses pinned symbols, excludes unexplored cells, and clears maps", 
     glyph: { symbolIndex: 99, glyphFlags: 0, ttychar: 64 }, background: { symbolIndex: 19, glyphFlags: 0, ttychar: 46 } } });
   builder.accept({ type: "input_required", requestId: "1", prompt: { kind: "command", label: "command" } });
   assert.deepEqual(builder.snapshot().tiles.map(tile => tile.terrain), ["floor", "door_closed", "unknown", "unknown"]);
+  assert.equal(builder.snapshot().tiles[0].display_char, "@");
   assert.ok(builder.snapshot().tiles.every(tile => tile.visibility === "remembered"));
   builder.accept({ type: "event", sequence: 2, name: "map_cleared", data: {} });
   builder.accept({ type: "input_required", requestId: "2", prompt: { kind: "command", label: "command" } });
   assert.deepEqual(builder.snapshot().tiles, []);
   assert.match(builder.snapshot().level_id, /map-1$/);
   assert.equal(terrainFromSymbol(17), "unknown", "bars must not be confused with corridors");
+});
+
+test("inventory is built only from the pinned read-only inventory menu and invalidated on change", () => {
+  const caps = new RealWasmAdapter(() => new ScriptedWorker()).capabilities;
+  const builder = new ObservationBuilder("session", caps);
+  const boundary = (id: string) => builder.accept({ type: "input_required", requestId: id, prompt: { kind: "command", label: "command" } });
+  const item = { identifier: 97, accelerator: 97, text: "a blessed potion of healing" };
+  const heading = (text: string) => ({ identifier: 0, accelerator: 0, text });
+  boundary("before-inventory");
+  assert.equal(builder.snapshot().inventory_current, false);
+
+  builder.accept({ type: "event", sequence: 1, name: "menu", data: { how: 0, title: "", items: [heading("Weapons"), item, heading("Potions")] } });
+  builder.accept({ type: "event", sequence: 2, name: "menu", data: { how: 1, title: "Choose", items: [item] } });
+  boundary("inventory-observed");
+  assert.equal(builder.snapshot().inventory_current, true);
+  assert.deepEqual(builder.snapshot().inventory.map(entry => [entry.slot, entry.display_name, entry.known_properties]), [
+    ["a", "a blessed potion of healing", null],
+  ]);
+
+  builder.accept({ type: "event", sequence: 3, name: "inventory_changed", data: {} });
+  boundary("inventory-invalidated");
+  assert.equal(builder.snapshot().inventory_current, false);
+  assert.equal(builder.snapshot().inventory.length, 1, "retain the last known list but mark it stale");
 });
 
 test("open stops at direction; stale and wrong-kind responses commit no input", async () => {

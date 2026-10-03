@@ -5,6 +5,7 @@ let started = false;
 let inputSequence = 0;
 let pendingInput = null;
 let nextWindowId = 1;
+let commandInputBuffer = [];
 const menus = new Map();
 const windowTypes = new Map();
 // Pinned include/botl.h condition bits, copied while the callback is active.
@@ -194,7 +195,7 @@ async function handleShim(name, ...args) {
     case "shim_select_menu": {
       const menu = menus.get(args[0]) ?? { windowId: args[0], title: "", items: [] };
       menu.how = args[1];
-      sendEvent("menu", { windowId: menu.windowId, how: menu.how, title: menu.title, items: menu.items });
+      sendEvent("menu", { windowId: menu.windowId, windowType: windowTypes.get(menu.windowId), how: menu.how, title: menu.title, items: menu.items });
       if (menu.how === 0) {
         menus.delete(args[0]);
         return 0;
@@ -262,9 +263,11 @@ async function handleShim(name, ...args) {
       return text.length ? text.charCodeAt(0) : 32;
     }
     case "shim_nh_poskey": {
+      if (commandInputBuffer.length) return commandInputBuffer.shift().charCodeAt(0);
       const value = await waitForInput({ kind: "command", label: "NetHack is waiting for a command" });
-      const text = String(value ?? " ");
-      return text.length ? text.charCodeAt(0) : 32;
+      const keys = Array.from(String(value ?? " "));
+      commandInputBuffer.push(...keys.slice(1));
+      return keys[0]?.charCodeAt(0) ?? 32;
     }
     case "shim_display_nhwindow": {
       sendEvent("display_window", { windowId: args[0], blocking: Boolean(args[1]) });

@@ -6,6 +6,7 @@
  */
 import { createHarnessSession, humanStep } from "./harness.mjs";
 import type { Direction, Observation, SessionEvent, StepResult } from "@nhchat/core";
+import { OfflineDemoProvider } from "@nhchat/agent";
 
 let pass = 0;
 let fail = 0;
@@ -53,6 +54,17 @@ async function main() {
       // rat at (12,6) must NOT be visible from spawn at (5,5)
       !a.entities.some((e) => e.kind === "monster" && e.position.x === 12),
     );
+    const inventoryAnswer = await new OfflineDemoProvider().decide({
+      observation: { ...a, inventory_current: false }, userText: "what am I carrying?",
+      recentMessages: [], effectiveConstraints: {}, mode: "human",
+    });
+    check("Observation/unknown-inventory-not-reported-empty",
+      inventoryAnswer.decision?.type === "message" && inventoryAnswer.decision.text.includes("最新背包快照"));
+    const chineseMove = await new OfflineDemoProvider().decide({
+      observation: a, userText: "往东走", recentMessages: [], effectiveConstraints: {}, mode: "suggest",
+    });
+    check("Assistant/offline-understands-simple-Chinese-direction",
+      chineseMove.decision?.type === "action" && chineseMove.decision.action.action === "move" && chineseMove.decision.action.direction === "east");
   }
 
   // --- Primitive control: move / wait --------------------------------------

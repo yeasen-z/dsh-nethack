@@ -16,7 +16,32 @@ export async function startRuntimeServer(port = 4173) {
       response.writeHead(302, { location: "/apps/web/public/runtime-adapter-smoke.html" });
       response.end(); return;
     }
-    const allowed = pathname.startsWith("/apps/web/public/") || /^\/packages\/(core|adapter-wasm)\/dist\//.test(pathname);
+    if ((pathname === "/api/healthz" && request.method === "GET") || (pathname === "/api/decide" && request.method === "POST")) {
+      let body = "";
+      if (request.method === "POST") {
+        for await (const chunk of request) {
+          body += chunk;
+          if (Buffer.byteLength(body) > 1_000_000) {
+            response.writeHead(413, { "content-type": "application/json" });
+            response.end(JSON.stringify({ ok: false, error: "request too large" })); return;
+          }
+        }
+      }
+      try {
+        const gatewayPort = Number(process.env.GATEWAY_PORT ?? 8787);
+        const upstream = await fetch(`http://127.0.0.1:${gatewayPort}${pathname === "/api/healthz" ? "/healthz" : "/decide"}`, {
+          method: request.method,
+          ...(request.method === "POST" ? { headers: { "content-type": "application/json" }, body } : {}),
+        });
+        response.writeHead(upstream.status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+        response.end(await upstream.text());
+      } catch {
+        response.writeHead(503, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+        response.end(JSON.stringify({ ok: false, error: "model gateway is not running (start it with npm run gateway)" }));
+      }
+      return;
+    }
+    const allowed = pathname.startsWith("/apps/web/public/") || /^\/packages\/(core|adapter-wasm|agent)\/dist\//.test(pathname);
     if (!allowed || pathname.split("/").some(segment => segment === ".." || segment.startsWith(".")) || !["GET", "HEAD"].includes(request.method)) {
       response.writeHead(404); response.end(); return;
     }

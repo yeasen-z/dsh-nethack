@@ -40,6 +40,12 @@ immediately; it is not an input boundary. Selectable menus are returned to the
 page, and the Worker translates selected accelerators into the shim's
 `menu_item` array.
 
+Command-boundary responses may carry a small key sequence. The production
+adapter uses `m.` for its typed `wait` action: NetHack can reject a bare `.`
+when it considers resting pointless, while `m.` requests a forced one-turn
+rest. The Worker consumes the sequence within the same pending boundary, so
+the intermediate `m` prefix is not exposed as a stable game observation.
+
 The upstream glue's pointer helper does not cover every current upstream ABI
 type. The Worker installs local `getPointerValue`/`setPointerValue`
 compatibility helpers at initialization (including 16-bit values and

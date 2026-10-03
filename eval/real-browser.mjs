@@ -8,12 +8,14 @@ let browser;
 let passed = 0;
 const pass = name => { console.log(`PASS  RealRuntime/${name}`); passed++; };
 try {
-  const executablePath = process.env.CHROMIUM_EXECUTABLE_PATH ?? (existsSync("/usr/bin/chromium") ? "/usr/bin/chromium" : undefined);
+  const executablePath = process.env.CHROMIUM_EXECUTABLE_PATH ?? findSystemChromium();
   browser = await chromium.launch({ executablePath, headless: true });
   const page = await browser.newPage();
   const errors = [];
   page.on("pageerror", error => errors.push(String(error)));
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
+  assert.equal(await page.locator('[data-action="move"]').count(), 8);
+  pass("eight-direction-controls-render");
   await page.click("#start");
   await page.waitForFunction(() => window.nhchat || document.querySelector("#error").textContent);
   assert.equal(await page.locator("#error").textContent(), "");
@@ -88,6 +90,8 @@ try {
   const open = await run({ action: "open", direction: "east" });
   assert.equal(open.status, "needs_input");
   assert.equal(open.observation.input.kind, "direction");
+  assert.equal(await page.locator("#prompt .direction-pad button").count(), 8);
+  pass("direction-prompt-eight-way-controls");
   const promptId = open.observation.input.promptId;
   const stalePrompt = await step(await request({ action: "respond", promptId: "expired", response: { kind: "direction", direction: "east" } }, "stale-prompt-real"));
   assert.equal(stalePrompt.reason, "prompt_mismatch");
@@ -115,4 +119,13 @@ try {
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));
+}
+
+function findSystemChromium() {
+  const candidates = process.platform === "darwin"
+    ? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium"]
+    : process.platform === "win32"
+      ? ["C:/Program Files/Google/Chrome/Application/chrome.exe", "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"]
+      : ["/usr/bin/chromium", "/usr/bin/chromium-browser", "/usr/bin/google-chrome", "/usr/bin/google-chrome-stable"];
+  return candidates.find(existsSync);
 }

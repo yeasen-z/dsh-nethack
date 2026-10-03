@@ -52,6 +52,39 @@ export interface AgentProvider {
   decide(ctx: AgentContext, signal?: AbortSignal): Promise<ProviderResult>;
 }
 
+/** Browser-safe client for the same-origin model-gateway proxy. Secrets stay on the gateway. */
+export class HttpGatewayProvider implements AgentProvider {
+  readonly name = "model-gateway";
+
+  constructor(private endpoint = "/api/decide") {}
+
+  async decide(ctx: AgentContext, signal?: AbortSignal): Promise<ProviderResult> {
+    try {
+      const response = await fetch(this.endpoint, {
+        method: "POST",
+        signal,
+        headers: { "content-type": "application/json" },
+        // Never serialize the live session handle into a model request.
+        body: JSON.stringify({
+          observation: ctx.observation,
+          userText: ctx.userText,
+          recentMessages: ctx.recentMessages,
+          effectiveConstraints: ctx.effectiveConstraints,
+          mode: ctx.mode,
+        }),
+      });
+      const result = await response.json() as ProviderResult;
+      if (!response.ok) return { ok: false, error: result.error ?? `gateway HTTP ${response.status}` };
+      if (!result || typeof result.ok !== "boolean" || (result.ok && !result.decision)) {
+        return { ok: false, error: "gateway returned an invalid decision envelope" };
+      }
+      return result;
+    } catch (error) {
+      return { ok: false, error: `model gateway unavailable: ${String(error)}` };
+    }
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Offline demo provider — deterministic narrow intent parsing so the vertical
 // slice runs without any API key. NOT a substitute for LLM interpretation in
@@ -66,30 +99,33 @@ export class OfflineDemoProvider implements AgentProvider {
     const obs = ctx.observation;
 
     // Read-only QA: grounded answers, zero game input (acceptance criterion).
-    if (/health|hp\b/.test(t)) {
+    if (/health|hp\b|血量|生命值/.test(t)) {
       const { hp, max_hp } = obs.player;
       return ok({
         type: "message",
         text:
           hp === null
             ? "Your health is not currently readable from the snapshot."
-            : `You have ${hp}/${max_hp} HP on ${obs.level_id}.`,
+            : `当前生命值：${hp}/${max_hp} HP（${obs.level_id}）。`,
       });
     }
-    if (/inventory|carry|backpack/.test(t)) {
+    if (/inventory|carry|backpack|背包|携带|物品/.test(t)) {
+      if (!obs.inventory_current) {
+        return ok({ type: "message", text: "游戏还没有提供最新背包快照，暂时不能可靠判断物品。" });
+      }
       const items = obs.inventory.map((i) => `${i.slot ? `(${i.slot}) ` : ""}${i.display_name}`);
       return ok({
         type: "message",
-        text: items.length ? `You are carrying: ${items.join(", ")}.` : "Your inventory is empty.",
+        text: items.length ? `当前携带：${items.join("、")}。` : "当前背包为空。",
       });
     }
-    if (/monster|what.*see/.test(t)) {
+    if (/monster|what.*see|怪物|敌人|看到什么/.test(t)) {
       const mons = obs.entities.filter((e) => e.kind === "monster");
       return ok({
         type: "message",
         text: mons.length
-          ? `You can see: ${mons.map((m) => `${m.display_name}${m.monster_kind ? ` (${m.monster_kind})` : " (unidentified)"} at (${m.position.x},${m.position.y})`).join(", ")}.`
-          : "You don't see any monsters right now.",
+          ? `当前可见：${mons.map((m) => `${m.display_name}${m.monster_kind ? `（${m.monster_kind}）` : "（未识别）"}，位置 (${m.position.x},${m.position.y})`).join("；")}。`
+          : "当前观察中没有可确认的怪物。",
       });
     }
 
@@ -98,22 +134,35 @@ export class OfflineDemoProvider implements AgentProvider {
       north: "north", n: "north", up: "north",
       south: "south", s: "south", down: "south",
       east: "east", e: "east", west: "west", w: "west",
+      北: "north", 上: "north", 南: "south", 下: "south", 东: "east", 西: "west",
+      东北: "northeast", 西北: "northwest", 东南: "southeast", 西南: "southwest",
     };
+    const chineseDir = (value: string) => dirMap[value.replace(/(?:边|方)$/, "")];
     const moveMatch = t.match(/^(?:(?:move|walk|go)\s+)?(?:(?:one tile|step)\s+)?(north|south|east|west|n|s|e|w)(?:ward)?[.!]?$/);
     if (moveMatch) {
       const d = dirMap[moveMatch[1]];
       if (d) return ok({ type: "action", action: { action: "move", direction: d }, explanation: "single-step move" });
     }
+    const moveZh = t.match(/^(?:请)?(?:往|向)?(东北|东南|西北|西南|北|南|东|西|上|下)(?:边|方)?(?:走|移动|一步)?[。.!！]?$/);
+    if (moveZh) {
+      const d = chineseDir(moveZh[1]);
+      if (d) return ok({ type: "action", action: { action: "move", direction: d }, explanation: "单步移动" });
+    }
 
-    if (/^wait[.!]?$/.test(t)) return ok({ type: "action", action: { action: "wait" } });
+    if (/^wait[.!]?$|^(?:等一下|等待|原地等待)[。.!！]?$/.test(t)) return ok({ type: "action", action: { action: "wait" } });
 
     const openMatch = t.match(/^open (?:the )?(.+?)(?: (?:ern)? door)?[.!]?$/);
     if (openMatch) {
       const d = dirMap[openMatch[1].trim().toLowerCase()];
       if (d) return ok({ type: "action", action: { action: "open", direction: d }, explanation: "open adjacent door" });
     }
+    const openZh = t.match(/^(?:打开|开(?:一下)?)(?:门)?(?:朝|向|往)?(东北|东南|西北|西南|北|南|东|西)(?:边|方)?(?:的门)?[。.!！]?$/);
+    if (openZh) {
+      const d = chineseDir(openZh[1]);
+      if (d) return ok({ type: "action", action: { action: "open", direction: d }, explanation: "尝试打开相邻方向的门" });
+    }
 
-    if (/pick(ing)? ?up|grab/.test(t)) return ok({ type: "action", action: { action: "pickup" } });
+    if (/pick(ing)? ?up|grab|拾取|捡起/.test(t)) return ok({ type: "action", action: { action: "pickup" } });
 
     // Delegation: "walk to that door" -> ground target via observation.
     // Grounding rule (handoff section 9): target an ADJACENT reachable tile;
@@ -154,7 +203,7 @@ export class OfflineDemoProvider implements AgentProvider {
 
     return ok({
       type: "message",
-      text: "Offline demo provider understood: health/inventory/monsters questions; move/wait/open/pickup; or 'walk to that door'. Anything else needs a real LLM provider.",
+      text: "我目前是离线规则助手（不是大模型），可以尝试回答 HP/背包问题，或识别简单的方向移动、等待、开门和拾取指令。更开放的对话需要配置真实 LLM。",
     });
   }
 }

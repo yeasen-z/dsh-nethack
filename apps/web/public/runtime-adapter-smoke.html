@@ -1,48 +1,128 @@
 <!doctype html>
 <html lang="en">
 <meta charset="utf-8">
-<title>Real NetHack middleware diagnostic</title>
-<style>body{font:16px system-ui;max-width:900px;margin:2rem auto}button{margin:.25rem}pre{white-space:pre-wrap}#error{color:#a00}</style>
-<h1>Real NetHack middleware diagnostic</h1>
-<p>This page exercises typed actions through the middleware. Terrain is conservatively remembered; current entities and inventory are not yet available.</p>
-<button id="start">Start real game</button>
-<button data-action="wait" disabled>Wait</button>
-<button data-action="move" data-direction="east" disabled>Move east</button>
-<button data-action="open" data-direction="east" disabled>Open east</button>
-<button data-action="pickup" disabled>Pick up</button>
-<button id="takeover" disabled>Take Over</button>
-<div id="prompt"></div><pre id="state">Not started</pre><pre id="error"></pre>
-<script type="importmap">{"imports":{"@nhchat/core":"../../../packages/core/dist/index.js"}}</script>
+<title>NetHack Chat · Play</title>
+<style>
+*{box-sizing:border-box}body{margin:0;height:100vh;overflow:hidden;color:#e8eaf0;background:#111318;font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button{font:inherit;color:inherit;background:#2c3039;border:1px solid #484e5b;border-radius:7px;padding:.55rem .8rem;cursor:pointer;transition:background .12s,border-color .12s}
+button:hover:not(:disabled){background:#3a4150;border-color:#68758a}button:disabled{opacity:.45;cursor:not-allowed}
+.topbar{height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 1.2rem;border-bottom:1px solid #30343d;background:#191c22}
+.brand{display:flex;align-items:center;gap:.75rem}.brand h1{font-size:1.05rem;margin:0;font-weight:650;letter-spacing:.02em}.brand-mark{color:#f1c75b;font-size:1.35rem}
+.top-actions{display:flex;align-items:center;gap:.8rem}.connection{color:#a9b1bf;font-size:.9rem}.primary{background:#92712a;border-color:#b38d36;color:#fff4ce}.primary:hover:not(:disabled){background:#aa8432}
+.layout{height:calc(100vh - 62px);display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:0}
+.game-screen{position:relative;min-width:0;min-height:0;display:flex;flex-direction:column;background:radial-gradient(ellipse at 50% 45%,#25282d 0,#17191e 64%,#111318 100%);border-right:1px solid #343944}
+.game-status{height:48px;flex:none;display:flex;align-items:center;gap:1.25rem;padding:0 1.2rem;color:#c3c9d3;border-bottom:1px solid #30343d;font-variant-numeric:tabular-nums}.game-status span{white-space:nowrap}.game-status .muted{color:#8992a1}
+#map-wrap{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:1rem}
+#map{display:grid;gap:0;width:max-content;min-width:max-content;font:22px/1.2 "DejaVu Sans Mono","SFMono-Regular",Menlo,monospace;text-shadow:0 1px 3px #000;user-select:none}
+.cell{display:grid;place-items:center;width:1.25em;height:1.25em;color:#c2c5c9}.wall{color:#b7bbc3}.floor{color:#c5c1b3}.corridor{color:#d2c8a6}.door{color:#e5b451}.stairs{color:#90d49d}.water{color:#79bce9}.player{color:#161719;background:#edc65b;border-radius:3px;font-weight:bold}.unknown{color:#353a43}
+.game-empty{color:#7e8796;text-align:center}.screen-note{position:absolute;right:1rem;bottom:.7rem;color:#737c8b;font-size:.78rem;pointer-events:none}
+.sidebar{min-height:0;display:flex;flex-direction:column;background:#1b1e24}.tabbar{height:52px;flex:none;display:flex;gap:.25rem;padding:.45rem .55rem 0;border-bottom:1px solid #343944}
+.tab{flex:1;border:0;border-radius:6px 6px 0 0;color:#9ca5b3;background:transparent}.tab[aria-selected="true"]{color:#f0ca65;background:#292c33;border-bottom:2px solid #e3b83f}
+.tab-content{display:none;flex:1;min-height:0;overflow:auto;padding:1rem}.tab-content.active{display:flex;flex-direction:column}.section-title{margin:0 0 .6rem;font-size:.86rem;text-transform:uppercase;letter-spacing:.09em;color:#aeb6c4}
+.prompt-card{min-height:92px;padding:.8rem;border:1px solid #424957;background:#242830;border-radius:8px;color:#e6e9ef}.prompt-card p{margin:.1rem 0 .6rem}.prompt-buttons{display:flex;flex-wrap:wrap;gap:.4rem}.prompt-buttons button{font-size:.9rem}.control-spacer{flex:1;min-height:1rem}
+.direction-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;max-width:210px;margin:.1rem auto .8rem}.direction-pad button{width:58px;height:48px;padding:0;font-size:1rem}.direction-pad span{width:58px;height:48px}
+.action-row{display:grid;grid-template-columns:repeat(2,1fr);gap:.4rem}.action-row button{margin:0}
+.list{margin:0;padding-left:1.25rem;color:#d3d7df}.list li{margin:.35rem 0}.empty-state{color:#8d96a4;font-size:.92rem}#error{color:#ff8585;white-space:pre-wrap;margin:.5rem 0 0}
+.ai-head{display:flex;align-items:center;justify-content:space-between;gap:.5rem}.ai-head select{max-width:150px;background:#242830;color:#e8eaf0;border:1px solid #484e5b;border-radius:6px;padding:.4rem}.ai-mode{margin:.2rem 0 .8rem;color:#aab3c1;font-size:.82rem}.chat-log{flex:1;min-height:180px;overflow:auto;display:flex;flex-direction:column;gap:.6rem;margin-bottom:.8rem}.chat-message{padding:.65rem .75rem;border-radius:8px;background:#262a32;white-space:pre-wrap;overflow-wrap:anywhere}.chat-message.user{margin-left:1.3rem;background:#31343b}.chat-role{display:block;margin-bottom:.25rem;font-size:.73rem;color:#abb4c2;text-transform:uppercase;letter-spacing:.06em}.chat-compose{display:grid;gap:.45rem}.chat-compose textarea{resize:vertical;min-height:72px;max-height:150px;background:#242830;color:#eef0f5;border:1px solid #484e5b;border-radius:7px;padding:.65rem;font:inherit}.chat-compose button{justify-self:end}.proposal-actions{display:flex;gap:.4rem;margin-top:.55rem}.proposal-actions .approve{background:#496d50;border-color:#648c6b}
+@media(max-width:1100px){.layout{height:auto;min-height:calc(100vh - 62px);grid-template-columns:1fr;grid-template-rows:minmax(52vh,1fr) 460px}.game-screen{min-height:52vh;border-right:0;border-bottom:1px solid #343944}.sidebar{min-height:460px}}
+@media(max-width:680px){body{height:auto;min-height:100vh;overflow:auto}.layout{min-height:calc(100vh - 62px);grid-template-rows:minmax(48vh,1fr) 460px}.game-screen{min-height:48vh}.sidebar{min-height:460px}.game-status{gap:.7rem;padding:0 .7rem;font-size:.84rem}#map{font-size:clamp(8px,calc((100vw - 30px)/100),12px)}.screen-note{display:none}}
+</style>
+<header class="topbar"><div class="brand"><span class="brand-mark">✦</span><h1>NetHack Chat</h1></div><div class="top-actions"><span id="connection" class="connection">未连接</span><button id="start" class="primary">启动游戏</button></div></header>
+<div class="layout">
+  <main class="game-screen" aria-label="Game screen"><div class="game-status"><span id="turn-status">Turn —</span><span id="hp-status">HP —/—</span><span id="position-status" class="muted">位置 —</span></div><div id="map-wrap"><div id="map" aria-label="NetHack game map"><div class="game-empty">启动游戏后，NetHack 地图会显示在这里</div></div></div><div class="screen-note">NetHack 5.0 · 引擎 glyph 字符 · 视野标记尚未接入</div></main>
+  <aside class="sidebar" aria-label="游戏辅助"><nav class="tabbar" role="tablist" aria-label="游戏侧栏"><button class="tab" role="tab" aria-selected="true" data-tab="control">手动</button><button class="tab" role="tab" aria-selected="false" data-tab="assistant">AI 助手</button><button class="tab" role="tab" aria-selected="false" data-tab="inventory">背包</button><button class="tab" role="tab" aria-selected="false" data-tab="messages">消息</button></nav>
+    <section class="tab-content active" role="tabpanel" data-panel="control"><h2 class="section-title">当前输入 / Prompt</h2><div id="prompt" class="prompt-card"><p>启动游戏后显示引擎提示。</p></div><div id="error"></div><div class="control-spacer"></div><h2 class="section-title">方向</h2><div id="move-pad" class="direction-pad" aria-label="八方向移动控制"></div><div class="action-row"><button data-action="wait" disabled>等待</button><button data-action="open" data-direction="east" disabled>开门…</button><button data-action="pickup" disabled>拾取</button></div></section>
+    <section class="tab-content" role="tabpanel" data-panel="assistant"><div class="ai-head"><h2 class="section-title">AI 助手</h2><select id="provider-select" aria-label="助手模式"><option value="offline">离线规则（非 LLM）</option><option value="gateway">LLM 网关</option></select></div><p id="ai-mode" class="ai-mode">离线规则助手：只识别少数问题和指令，不会调用大模型。</p><div id="chat-log" class="chat-log" aria-live="polite"><div class="chat-message"><span class="chat-role">说明</span>目前没有真实 LLM 连接。选择“LLM 网关”需要在服务端配置并启动模型网关。</div></div><form id="chat-form" class="chat-compose"><textarea id="chat-input" placeholder="例如：我现在有多少 HP？或建议我下一步做什么" disabled></textarea><button id="chat-send" class="primary" disabled>发送</button></form></section>
+    <section class="tab-content" role="tabpanel" data-panel="inventory"><h2 class="section-title">玩家已知物品</h2><p id="inventory-note" class="empty-state">等待引擎背包快照…</p><ul id="inventory-list" class="list"></ul></section>
+    <section class="tab-content" role="tabpanel" data-panel="messages"><h2 class="section-title">游戏消息</h2><p id="messages-empty" class="empty-state">游戏消息会显示在这里。</p><ol id="messages-list" class="list"></ol></section>
+  </aside>
+</div>
+<script type="importmap">{"imports":{"@nhchat/core":"../../../packages/core/dist/index.js","@nhchat/agent":"../../../packages/agent/dist/index.js"}}</script>
 <script type="module">
 import { MiddlewareSession } from "@nhchat/core";
+import { parseGameAction } from "@nhchat/core";
 import { RealWasmAdapter } from "../../../packages/adapter-wasm/dist/index.js";
+import { HttpGatewayProvider, OfflineDemoProvider } from "@nhchat/agent";
 
 let session, adapter, sequence = 0;
-const state = document.querySelector("#state"), prompt = document.querySelector("#prompt"), error = document.querySelector("#error");
+const prompt = document.querySelector("#prompt"), error = document.querySelector("#error");
+const mapElement = document.querySelector("#map");
+const chatLog = document.querySelector("#chat-log"), chatInput = document.querySelector("#chat-input");
+const offlineProvider = new OfflineDemoProvider(), gatewayProvider = new HttpGatewayProvider();
+const chatHistory = [];
+const directionLayout = [["northwest", "north", "northeast"], ["west", null, "east"], ["southwest", "south", "southeast"]];
+const directionLabels = { northwest: "↖", north: "↑", northeast: "↗", west: "←", east: "→", southwest: "↙", south: "↓", southeast: "↘" };
+const movementPad = document.querySelector("#move-pad");
+for (const row of directionLayout) for (const direction of row) {
+  if (!direction) { movementPad.append(document.createElement("span")); continue; }
+  const button = document.createElement("button");
+  button.type = "button"; button.dataset.action = "move"; button.dataset.direction = direction;
+  button.textContent = directionLabels[direction]; button.setAttribute("aria-label", `Move ${direction}`);
+  movementPad.append(button);
+}
 async function render() {
   const observation = await session.observe();
-  state.textContent = JSON.stringify(observation, null, 2);
+  renderMap(observation);
+  document.querySelector("#connection").textContent = observation.terminal ? "游戏结束" : "已连接 · NetHack WASM";
+  document.querySelector("#turn-status").textContent = `Turn ${observation.turn}`;
+  document.querySelector("#hp-status").textContent = `HP ${observation.player.hp ?? "?"}/${observation.player.max_hp ?? "?"}`;
+  document.querySelector("#position-status").textContent = `位置 ${observation.player.position.x}, ${observation.player.position.y}`;
   document.querySelectorAll("[data-action]").forEach(button => button.disabled = observation.input.kind !== "command");
+  document.querySelector("#start").disabled = !observation.terminal;
+  const inventoryList = document.querySelector("#inventory-list");
+  inventoryList.replaceChildren(...observation.inventory.map(item => { const li = document.createElement("li"); li.textContent = `${item.slot ? `${item.slot} — ` : ""}${item.display_name}`; return li; }));
+  document.querySelector("#inventory-note").textContent = observation.inventory_current ? `${observation.inventory.length} 件 · 当前快照` : "快照可能已过期，仅供参考";
+  const messagesList = document.querySelector("#messages-list");
+  messagesList.replaceChildren(...observation.messages.map(message => { const li = document.createElement("li"); li.textContent = message; return li; }));
+  document.querySelector("#messages-empty").hidden = observation.messages.length > 0;
+  chatInput.disabled = false;
+  document.querySelector("#chat-send").disabled = false;
   prompt.replaceChildren();
   const input = observation.input;
-  if (input.kind === "command" || input.kind === "game_over") return;
+  if (input.kind === "command") { prompt.innerHTML = "<p>你的回合。选择方向，或使用下方动作。</p>"; return; }
+  if (input.kind === "game_over") { prompt.textContent = `游戏结束：${input.reason}`; return; }
   const title = document.createElement("p");
-  title.textContent = input.kind === "text" ? `Human text entry is not implemented: ${input.purpose}` : `Pending ${input.kind} prompt`;
+  title.textContent = input.kind === "text" ? `需要输入文字：${input.purpose}` : `等待响应：${input.kind}`;
   prompt.append(title);
-  const choice = (label, response) => {
+  const choice = (label, response, parent = prompt) => {
     const button = document.createElement("button"); button.textContent = label;
     button.onclick = () => run({ action: "respond", promptId: input.promptId, response });
-    prompt.append(button);
+    parent.append(button);
   };
-  if (input.kind === "more") choice("Continue", { kind: "more" });
-  if (input.kind === "yes_no") { choice("Yes", { kind: "yes_no", value: true }); choice("No", { kind: "yes_no", value: false }); }
-  if (input.kind === "direction") choice("East", { kind: "direction", direction: "east" });
+  if (input.kind === "more") choice("继续", { kind: "more" });
+  if (input.kind === "yes_no") { choice("是", { kind: "yes_no", value: true }); choice("否", { kind: "yes_no", value: false }); }
+  if (input.kind === "direction") {
+    const pad = document.createElement("div"); pad.className = "direction-pad";
+    for (const row of directionLayout) for (const direction of row) {
+      if (!direction) { pad.append(document.createElement("span")); continue; }
+      choice(directionLabels[direction], { kind: "direction", direction }, pad);
+    }
+    prompt.append(pad);
+  }
   if (input.kind === "menu") input.options.forEach(option => choice(option.label, { kind: "menu", optionIds: [option.optionId] }));
-  if (input.kind !== "text") choice("Cancel", { kind: "cancel" });
+  if (input.kind !== "text") choice("取消", { kind: "cancel" });
+}
+function renderMap(observation) {
+  const points = new Map(observation.tiles.map(tile => [`${tile.x},${tile.y}`, tile]));
+  const xs = [...observation.tiles.map(tile => tile.x), observation.player.position.x];
+  const ys = [...observation.tiles.map(tile => tile.y), observation.player.position.y];
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const width = maxX - minX + 1, height = maxY - minY + 1;
+  mapElement.replaceChildren();
+  mapElement.style.gridTemplateColumns = `repeat(${width}, 1.25em)`;
+  const symbols = { wall: "#", floor: ".", corridor: ":", door_closed: "+", door_open: "/", stairs_up: "<", stairs_down: ">", water: "~", unknown: "?" };
+  for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
+    const cell = document.createElement("span"), tile = points.get(`${x},${y}`);
+    const isPlayer = x === observation.player.position.x && y === observation.player.position.y;
+    const terrain = tile?.terrain ?? "unknown";
+    cell.className = `cell ${isPlayer ? "player" : terrain === "door_closed" || terrain === "door_open" ? "door" : terrain === "stairs_up" || terrain === "stairs_down" ? "stairs" : terrain}`;
+    cell.textContent = isPlayer ? "@" : tile?.display_char ?? symbols[terrain] ?? "?";
+    cell.title = `(${x}, ${y}) · ${tile?.visibility ?? "unknown"}${tile ? ` · ${terrain}` : ""}`;
+    mapElement.append(cell);
+  }
 }
 async function run(action) {
-  let failed = false;
-  document.querySelectorAll("button:not(#takeover)").forEach(button => button.disabled = true);
+  document.querySelectorAll("[data-action], #prompt button").forEach(button => button.disabled = true);
   try {
     const observation = await session.observe();
     const result = await session.step({ request_id: `browser-${++sequence}`, session_id: session.sessionId,
@@ -51,23 +131,20 @@ async function run(action) {
     await render();
     return result;
   } catch (failure) {
-    failed = true; error.textContent = String(failure); adapter.terminate();
+    error.textContent = String(failure); adapter.terminate();
     document.querySelector("#start").disabled = false;
-    document.querySelector("#takeover").disabled = true;
     throw failure;
   }
-  finally { if (!failed) document.querySelector("#takeover").disabled = false; }
 }
 document.querySelector("#start").onclick = async () => {
   document.querySelector("#start").disabled = true;
-  error.textContent = ""; state.textContent = "Starting real Worker…";
+  error.textContent = "";
   window.nhchat = undefined;
   adapter?.terminate();
   try {
     adapter = new RealWasmAdapter(() => new Worker("./runtime-probe.worker.js", { type: "module" }));
     session = new MiddlewareSession({ session_id: crypto.randomUUID(), adapter, skills: {} });
     await session.start();
-    document.querySelector("#takeover").disabled = false;
     await render();
     // Diagnostic handle for integration tests; all commands still use step().
     window.nhchat = { session, adapter, run, render };
@@ -75,7 +152,94 @@ document.querySelector("#start").onclick = async () => {
 };
 document.querySelectorAll("[data-action]").forEach(button => button.onclick = () => run(button.dataset.direction
   ? { action: button.dataset.action, direction: button.dataset.direction } : { action: button.dataset.action }));
-document.querySelector("#takeover").onclick = async () => { await session.takeOver(); await render(); };
+document.querySelectorAll("[data-tab]").forEach(tab => tab.onclick = () => {
+  document.querySelectorAll("[data-tab]").forEach(other => other.setAttribute("aria-selected", String(other === tab)));
+  document.querySelectorAll("[data-panel]").forEach(panel => panel.classList.toggle("active", panel.dataset.panel === tab.dataset.tab));
+});
+function addChatMessage(role, text) {
+  const entry = document.createElement("div"); entry.className = `chat-message ${role}`;
+  const label = document.createElement("span"); label.className = "chat-role";
+  label.textContent = role === "user" ? "你" : role === "assistant" ? "助手" : "系统";
+  const content = document.createElement("span"); content.textContent = text;
+  entry.append(label, content); chatLog.append(entry); chatLog.scrollTop = chatLog.scrollHeight;
+  chatHistory.push({ role, text });
+}
+function activeProvider() { return document.querySelector("#provider-select").value === "gateway" ? gatewayProvider : offlineProvider; }
+async function refreshAiMode() {
+  const mode = document.querySelector("#provider-select").value;
+  const note = document.querySelector("#ai-mode");
+  if (mode === "offline") {
+    note.textContent = "离线规则助手：可回答少数状态问题并识别简单指令；不会调用大模型。";
+    return;
+  }
+  note.textContent = "正在检查本地模型网关…";
+  try {
+    const response = await fetch("/api/healthz");
+    const status = await response.json();
+    if (!response.ok) throw new Error(status.error ?? "gateway unavailable");
+    note.textContent = status.mode === "openai-compatible"
+      ? "模型网关已连接；本次问题与玩家已知游戏快照会转发到服务端配置的模型服务，密钥不会进入浏览器。"
+      : "网关在线，但当前是 echo 测试模式，不是真实 LLM。需配置 GATEWAY_MODE=openai-compatible 与服务端密钥。";
+  } catch {
+    note.textContent = "模型网关未运行。需在另一个终端启动 npm run gateway；真实 LLM 还需服务端配置。";
+  }
+}
+document.querySelector("#provider-select").onchange = refreshAiMode;
+document.querySelector("#chat-form").onsubmit = async event => {
+  event.preventDefault();
+  const userText = chatInput.value.trim();
+  if (!userText || !session) return;
+  chatInput.value = "";
+  document.querySelector("#chat-send").disabled = true;
+  addChatMessage("user", userText);
+  try {
+    const observation = await session.observe();
+    const provider = activeProvider();
+    const result = await provider.decide({ observation, userText,
+      recentMessages: chatHistory.slice(-9, -1).map(message => `${message.role}: ${message.text}`),
+      effectiveConstraints: { action_requires_user_confirmation: true }, mode: "suggest", session });
+    if (!result.ok || !result.decision) { addChatMessage("system", result.error ?? "助手暂时不可用；游戏没有收到输入。"); return; }
+    const decision = result.decision;
+    if (decision.type === "message") { addChatMessage("assistant", decision.text); return; }
+    if (decision.type === "clarify") { addChatMessage("assistant", decision.question); return; }
+    if (decision.type === "skill") {
+      addChatMessage("assistant", "这是一个自动任务建议，但当前真实游戏的导航能力尚未开放；没有执行任何动作。你可以继续用手动控制。");
+      return;
+    }
+    const proposedAction = parseGameAction(decision.action);
+    if (!proposedAction || !observation.available_actions.includes(proposedAction.action)) {
+      addChatMessage("system", "助手返回了当前不支持的动作建议；没有发送任何游戏输入。");
+      return;
+    }
+    const entry = document.createElement("div"); entry.className = "chat-message assistant";
+    const label = document.createElement("span"); label.className = "chat-role"; label.textContent = "待确认动作";
+    const description = document.createElement("span"); description.textContent = `${decision.explanation ? `${decision.explanation} · ` : ""}${JSON.stringify(proposedAction)}`;
+    const actions = document.createElement("div"); actions.className = "proposal-actions";
+    const approve = document.createElement("button"); approve.className = "approve"; approve.textContent = "确认执行";
+    const reject = document.createElement("button"); reject.textContent = "忽略";
+    approve.onclick = async () => {
+      approve.disabled = true; reject.disabled = true;
+      const current = await session.observe();
+      if (current.state_version !== observation.state_version) {
+        addChatMessage("system", "生成建议后游戏状态已变化。为避免按过期状态行动，建议未执行；请重新询问助手。");
+        return;
+      }
+      if (current.input.kind !== "command") {
+        addChatMessage("system", "游戏正在等待 prompt 响应。请先切到“手动”页完成或取消当前 prompt；建议未执行。");
+        return;
+      }
+      try {
+        const outcome = await run(proposedAction);
+        addChatMessage("system", outcome.input_committed ? `已按你的确认发送动作。状态：${outcome.status}。` : `动作未执行：${outcome.reason ?? outcome.status}。`);
+      } catch (failure) { addChatMessage("system", `执行失败：${String(failure)}`); }
+    };
+    reject.onclick = () => { approve.disabled = true; reject.disabled = true; addChatMessage("system", "已忽略建议；游戏状态未改变。"); };
+    actions.append(approve, reject); entry.append(label, description, actions); chatLog.append(entry); chatLog.scrollTop = chatLog.scrollHeight;
+    chatHistory.push({ role: "assistant", text: `Proposed ${JSON.stringify(proposedAction)}` });
+  } catch (failure) { addChatMessage("system", `助手出错：${String(failure)}。游戏没有因这条请求自动行动。`); }
+  finally { document.querySelector("#chat-send").disabled = !session; }
+};
+refreshAiMode();
 window.addEventListener("pagehide", () => adapter?.terminate());
 </script>
 </html>

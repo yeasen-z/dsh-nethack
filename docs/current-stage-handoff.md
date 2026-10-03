@@ -15,7 +15,7 @@
   `apps/web/public/runtime-probe.worker.js`, and `docs/runtime-worker.md`.
 - `RealWasmAdapter`, `RuntimeWorkerClient`, and `ObservationBuilder`, wired to
   the existing `MiddlewareSession` in `runtime-adapter-smoke.html`.
-- `npm test`, `npm run eval:real`, and `npm run runtime:serve`;
+- `npm test`, `npm run eval:real-node`, `npm run eval:real`, and `npm run runtime:serve`;
   behavior and limitations are documented in `docs/real-adapter.md`.
 - Fetch regression fixes for new no-checkout clones and nested non-Git paths.
 
@@ -32,15 +32,32 @@ cases; no C patch was needed for this probe.
 
 The real middleware now decodes HP, maximum HP, turn, conditions, terrain and
 position, publishes observations at stable boundaries, and executes typed
-wait/move/open/pickup/respond. Headless Chromium passes 10 real checks for
-startup, observation stability, actions, stale/duplicate rejection and epoch
-handoff. Ten transport/adapter tests and three fetch regression checks pass.
-The fake suite remains 25 passed, 0 failed, 2 skipped.
+wait/move/open/pickup/respond. Initial inventory is copied from the read-only
+menu and marked stale after inventory-change notifications. The previous
+headless Chromium run passed 10
+runtime checks for startup, observation stability, actions, stale/duplicate
+rejection and epoch handoff; the browser suite now also asserts eight-way
+movement controls, but those UI assertions are not yet rerun locally. Twelve
+transport/adapter tests and three fetch regression checks pass.
+An additional Node Worker integration test exercises startup prompts, stable
+real observations, and a real wait action without browser automation.
+The wait recipe sends NetHack's forced-rest sequence (`m.`), avoiding the
+zero-turn response that can occur when a bare `.` is rejected as pointless.
+The fake suite remains 26 passed, 0 failed, 2 skipped.
+
+For the current local checkout, `npm run eval:real-node` was verified using
+the already-built runtime. `npm run eval:real` was not rerun because the local
+`playwright` package is absent; the read-only `npm run doctor` reports this
+along with the Node/npm version mismatch. No dependency install, runtime
+switch, or desktop-browser interaction was performed.
 
 ## Known limits / next work
 
-The diagnostic is not a production game UI. Current visibility, entities and
-inventory are incomplete; terrain is conservatively remembered and real
+The diagnostic now has a large glyph-character map on the left and a
+Control/Inventory/Messages tab panel on the right. It runs the real NetHack
+WASM engine but is still a prototype, not the upstream graphical tileset.
+Current visibility and entities are unavailable; inventory refresh after later
+mutations remains unverified; terrain is conservatively remembered and real
 `walk_to` is blocked through `supports_navigation: false`. Dungeon identity
 uses a conservative map generation. Complete those observation components and
 real pickup/prompt/death scenarios before expanding to agent integration.

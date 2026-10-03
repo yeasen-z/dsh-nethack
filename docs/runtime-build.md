@@ -73,7 +73,11 @@ directory to repeat the initialization check in a browser:
 python3 -m http.server 4173 --bind 127.0.0.1 --directory apps/web/public
 ```
 
-Then open `http://127.0.0.1:4173/runtime-smoke.html`. The page reports whether
-Chrome loaded the WASM, exports, embedded game data, and license. This initializes
-the engine with `noInitialRun`; starting a game and driving its first input prompt
-remain untested until the Worker bridge is implemented.
+Then open `http://127.0.0.1:4173/runtime-smoke.html` to check WASM initialization,
+exports, embedded game data, and license. To start a real game and exercise its
+input boundary, use `npm run runtime:serve` and follow the diagnostic steps in
+[`runtime-worker.md`](runtime-worker.md) and [`real-adapter.md`](real-adapter.md).
+
+Run `npm run doctor` for read-only environment diagnostics. It reports version
+mismatches and missing tools without switching runtimes, installing packages,
+or modifying local configuration.

@@ -41,7 +41,9 @@ export class RealWasmAdapter implements GameAdapter {
     let value: string;
     if (action.action !== "respond") {
       if (before.input.kind !== "command") return reject("wrong_input_state");
-      value = action.action === "move" ? KEYS[action.direction] : action.action === "wait" ? "." : action.action === "open" ? "o" : ",";
+    // NetHack may reject a bare `.` as pointless when no threat is nearby.
+    // `m.` forces the no-op/rest command and reliably consumes exactly one turn.
+    value = action.action === "move" ? KEYS[action.direction] : action.action === "wait" ? "m." : action.action === "open" ? "o" : ",";
     } else {
       if (!("promptId" in before.input) || action.promptId !== before.input.promptId) return reject("prompt_mismatch");
       const response = action.response;

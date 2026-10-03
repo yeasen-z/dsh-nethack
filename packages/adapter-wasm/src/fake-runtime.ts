@@ -408,6 +408,7 @@ class FakeNetHackEngine {
       tiles,
       entities,
       inventory,
+      inventory_current: true,
       messages: [...this.messages],
       input,
       available_actions:

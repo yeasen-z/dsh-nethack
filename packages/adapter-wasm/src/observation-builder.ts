@@ -1,6 +1,8 @@
 import type { AdapterCapabilities, InputState, Observation, TerrainKind, TileSnapshot } from "@nhchat/core";
 import type { GlyphInfo, RuntimeEvent, RuntimePrompt } from "./protocol.js";
 
+const INVENTORY_SECTIONS = new Set(["weapons", "armor", "rings", "amulets", "tools", "comestibles", "spellbooks", "potions", "scrolls", "wands", "gems", "coins", "rocks", "miscellaneous"]);
+
 /** Symbol indices from pinned NetHack include/defsym.h, not display characters. */
 export function terrainFromSymbol(index: number): TerrainKind {
   if (index >= 1 && index <= 11) return "wall";
@@ -39,6 +41,8 @@ export class ObservationBuilder {
   private level = "unknown";
   private mapGeneration = 0;
   private conditions: string[] = [];
+  private inventory: Observation["inventory"] = [];
+  private inventoryCurrent = false;
   private version = 0;
   private published: Observation | null = null;
   private generation = globalThis.crypto.randomUUID();
@@ -55,6 +59,29 @@ export class ObservationBuilder {
           if (typeof data.text === "string") this.messages = [...this.messages, data.text].slice(-40);
           break;
         case "map_cleared": this.tiles.clear(); this.mapGeneration++; break;
+        case "inventory_changed": this.inventoryCurrent = false; break;
+        case "menu": {
+          const menu = data as { how?: unknown; title?: unknown; items?: { identifier?: unknown; accelerator?: unknown; text?: unknown }[] };
+          const items = menu.items ?? [];
+          const sections = items.filter(item => item.identifier === 0 && typeof item.text === "string")
+            .map(item => String(item.text).trim().toLowerCase()).filter(section => INVENTORY_SECTIONS.has(section));
+          const entries = items.filter(item => typeof item.identifier === "number" && item.identifier !== 0 && typeof item.text === "string");
+          // This pinned windowport emits the player's inventory as an un-titled
+          // PICK_NONE menu grouped by NetHack's inventory sections. Do not
+          // treat arbitrary interactive menus as inventory snapshots.
+          if (menu.how === 0 && menu.title === "" && sections.length >= 2) {
+            const nextVersion = this.version + 1;
+            this.inventory = entries.map((item, index) => {
+              const accelerator = Number(item.accelerator);
+              const letter = accelerator >= 65 && accelerator <= 90 || accelerator >= 97 && accelerator <= 122
+                ? String.fromCharCode(accelerator) : null;
+              return { ref: `inventory-${letter ?? index}@v${nextVersion}`, slot: letter,
+                display_name: String(item.text), known_properties: null };
+            });
+            this.inventoryCurrent = true;
+          }
+          break;
+        }
         case "player_position":
           if (Number.isInteger(data.x) && Number.isInteger(data.y)) this.position = { x: Number(data.x), y: Number(data.y) };
           break;
@@ -72,7 +99,10 @@ export class ObservationBuilder {
           // Windowport redraws include remembered cells: they do NOT prove line
           // of sight. Conservatively keep terrain remembered and export no
           // current entities until a reliable visibility hook is implemented.
-          this.tiles.set(key, { x: Number(data.x), y: Number(data.y), terrain, visibility: "remembered" });
+          const codepoint = Number(glyph.ttychar);
+          const displayChar = Number.isInteger(codepoint) && codepoint >= 32 && codepoint <= 126
+            ? String.fromCodePoint(codepoint) : null;
+          this.tiles.set(key, { x: Number(data.x), y: Number(data.y), terrain, visibility: "remembered", display_char: displayChar });
           break;
         }
         case "status": {
@@ -95,7 +125,8 @@ export class ObservationBuilder {
       // Displayed dungeon labels are not globally unique. A cleared map starts
       // a conservative new coordinate namespace, even on a same-level redraw.
       turn: this.turn, level_id: `${this.level}:map-${this.mapGeneration}`, player: { position: { ...this.position }, hp: this.hp, max_hp: this.maxHp, conditions: [...this.conditions] },
-      tiles: [...this.tiles.values()], entities: [], inventory: [], messages: [...this.messages], input,
+      tiles: [...this.tiles.values()], entities: [], inventory: this.inventory.map(item => ({ ...item })),
+      inventory_current: this.inventoryCurrent, messages: [...this.messages], input,
       available_actions: input.kind === "command" ? ["move", "wait", "open", "pickup"] : input.kind === "game_over" ? [] : input.kind === "text" ? [] : ["respond"],
       capabilities: this.capabilities, terminal: input.kind === "game_over",
     };

@@ -68,6 +68,8 @@ export interface TileSnapshot {
   y: number;
   terrain: TerrainKind;
   visibility: TileVisibility;
+  /** Character emitted by the active windowport glyph renderer, if printable. */
+  display_char?: string | null;
 }
 
 /**
@@ -176,6 +178,8 @@ export interface Observation {
   tiles: TileSnapshot[];
   entities: EntitySnapshot[];
   inventory: InventoryEntry[];
+  /** True only while inventory matches the latest snapshot from the runtime. */
+  inventory_current: boolean;
   messages: string[]; // recent game messages, oldest first
   input: InputState;
   available_actions: GameActionName[];

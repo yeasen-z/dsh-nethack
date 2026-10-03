@@ -19,30 +19,59 @@ Then run:
 ```sh
 npm test
 npm run eval:fake
+npm run eval:real-node
 npm run eval:real
 npm run runtime:serve
 ```
 
+`eval:real-node` runs the actual pinned WASM Worker through
+`MiddlewareSession` using Node's built-in `worker_threads`; it needs the built
+runtime but not Playwright or a desktop browser. It checks startup prompt
+handling, decoded status/map/inventory data, stable reads, a real wait action,
+and that stale/duplicate requests do not advance the game. This is useful for
+engine/adapter regression coverage, but does not substitute for the separate
+Chromium check of the browser Worker environment.
+
 `runtime:serve` binds to loopback port 4173; its root redirects to the real
-middleware diagnostic. It serves only the public assets and compiled core and
-adapter modules. The adapter page cannot run when only `apps/web/public` is
+middleware page. It serves only public assets and compiled core, adapter, and
+agent modules. The page cannot run when only `apps/web/public` is
 served: it also needs the compiled workspace modules. The original standalone
 probe and module smoke page can still use the public-only server.
 
+The playable prototype uses a large left-hand map and a right-hand tabbed
+panel (manual controls, assistant, inventory, messages). Map cells display the
+printable character emitted by NetHack's glyph callback, with the player's
+position overlaid; terrain-only symbols are a fallback. This is the real
+NetHack 5.0 WASM engine, but not a port of a graphical tileset/windowport. The
+adapter still cannot distinguish current line of sight from remembered cells,
+so the page labels that limitation and does not enable navigation skills.
+
+The assistant defaults to `OfflineDemoProvider`, which is a narrow rules-based
+parser, not a language model. `HttpGatewayProvider` can send player-known
+context to the same-origin `/api/decide` proxy. The proxy reaches the optional
+loopback model gateway; that gateway defaults to echo mode and only calls an
+actual OpenAI-compatible model when explicitly configured server-side. Model
+actions are shown as proposals; the player must confirm them, and the confirmed
+typed action is validated by `MiddlewareSession` before any runtime input.
+Start `npm run gateway` separately from `npm run runtime:serve`. The gateway
+binds only to loopback and its API key is never sent to the browser.
+
 `eval:real` verifies artifact hashes and initialization, starts its own server
 on an unused loopback port, and launches headless Chromium. It uses
-`CHROMIUM_EXECUTABLE_PATH` if provided, otherwise `/usr/bin/chromium` when
-available, otherwise Playwright's installed browser. Use
+`CHROMIUM_EXECUTABLE_PATH` if provided, otherwise a common system Chrome or
+Chromium path for the host OS, otherwise Playwright's installed browser. Use
 `npx playwright install chromium` if no browser is available. Missing browsers
 or artifacts fail the check; they are not converted into passing skips.
 
-At this milestone, `npm test` passes 10 adapter/transport tests and 3 local-Git
-fetch regression checks; `eval:real` passes 10 actual browser checks; the
-existing fake suite passes 25 with its 2 real-runtime-related skips. The real
-suite validates startup, observation stability, wait, move, direction prompt
-handling, pickup delivery, deduplication, stale state and prompt rejection, and
-takeover epoch rejection. It does not cover all item/menu/game-over scenarios,
-in-flight skill interruption, save/load, or multiple browsers.
+At this milestone, `npm test` passes 12 adapter/transport tests and 3 local-Git
+fetch regression checks; the existing fake suite passes 25 with its 2
+real-runtime-related skips. The browser suite previously passed 10 runtime
+checks and now also asserts the eight-direction movement and direction-prompt
+controls; those new UI assertions have not been rerun in this local checkout
+because Playwright is absent. The real suite validates startup, observation
+stability, wait, move, direction prompt handling, pickup delivery,+deduplication, stale state and prompt rejection, and takeover epoch rejection.
+It does not cover all item/menu/game-over scenarios, in-flight skill
+interruption, save/load, or multiple browsers.
 
 ## Stable observations
 
@@ -66,10 +95,17 @@ never ask the engine to advance.
 
 Windowport redraws include remembered map cells and do not reliably indicate
 current line of sight. This version labels known terrain `remembered`, exports
-empty `entities` and `inventory`, and sets `supports_navigation: false`.
-`walk_to` refuses that capability before issuing input. Empty arrays here
-mean these observation components are not implemented, not that the game has
-no monsters or inventory. Unknown HP remains null.
+no current entities, and sets `supports_navigation: false`. `walk_to` refuses
+that capability before issuing input. Unknown HP remains null.
+
+Inventory is copied from the pinned shim's untitled, read-only (`PICK_NONE`)
+menu when it contains NetHack inventory section headings. The adapter exports
+the displayed item text and letter slot without inferring hidden item
+properties. `inventory_current` is false before the first such menu and is
+invalidated by `shim_update_inventory`; the last copied list is retained but
+consumers must not treat it as current until another snapshot arrives. The
+default runtime currently emits the complete inventory menu during startup;
+how often it refreshes after later inventory mutations remains to be verified.
 
 Displayed dungeon labels are not durable level identifiers. `level_id` also
 includes a map generation; clearing the map resets known cells and starts a
@@ -85,13 +121,18 @@ use the pinned `getdir` question through `yn_function`; matching its English
 question is an explicit compatibility limit, not a general prompt detector.
 More, menu and yes/no prompts use their callback types.
 
-Each action commits at most one input, then waits for the next boundary.
-`open` sends `o` and surfaces a direction prompt; it does not automatically
-send the direction in the original action. A subsequent typed `respond` must
-match the current prompt ID. Menu responses validate option IDs and single vs
-multiple selection, and use explicit indices to avoid numeric accelerator
-aliases. Unknown prompts always stop automatic continuation. Human text entry
-is not yet available through the current core response contract.
+Each action is accepted only at a current boundary and waits for the next
+stable boundary before returning. A typed recipe can contain a short sequence
+of engine keys within that one delivery: `wait` sends `m.` because NetHack may
+reject a bare `.` as pointless when no threat is nearby; the Worker consumes
+the `m` prefix and `.` rest command without publishing the intermediate prefix
+state. `open` sends `o` and surfaces a direction prompt; it does not
+automatically send the direction in the original action. A subsequent typed
+`respond` must match the current prompt ID. Menu responses validate option IDs
+and single vs multiple selection, and use explicit indices to avoid numeric
+accelerator aliases. Unknown prompts always stop automatic continuation.
+Human text entry is not yet available through the current core response
+contract.
 
 Prompt IDs include a fresh adapter generation, so recreating a Worker with the
 same session ID cannot accept responses from an earlier game. Concurrent
@@ -103,7 +144,7 @@ This is fail-stop behavior, not automatic recovery or commit reconciliation.
 ## Remaining Phase 3 work
 
 - Establish authoritative player-visible visibility and current entity data.
-- Complete inventory snapshots and stable dungeon identity.
+- Verify inventory refreshes after item mutations and stable dungeon identity.
 - Cover multi-item pickup, all prompt types, death and unexpected engine exits
   against controlled real scenarios.
 - Extend the existing core contract for human text entry and proper recovery.

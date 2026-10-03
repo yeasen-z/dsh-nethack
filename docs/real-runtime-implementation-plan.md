@@ -543,8 +543,8 @@ npm run test:e2e
 
 2026-10-03 进展：已实现首个真实中间件闭环，详见
 `docs/real-adapter.md`。`RuntimeWorkerClient`、稳定快照发布、状态与地形
-解码、五类动作入口和显式 prompt 响应已接通；真实 Chromium 验收
-10 项通过。当前可见性、实体、背包、可靠层身份和恢复仍未完成，
+解码、五类动作入口、显式 prompt 响应和首个 freshness-marked 背包快照已接通；真实 Chromium 验收
+10 项通过。当前可见性、实体、完整背包刷新、可靠层身份和恢复仍未完成，
 `supports_navigation: false` 会阻止真实 `walk_to`；本阶段尚未达到退出条件。
 
 任务：
@@ -565,7 +565,7 @@ npm run test:e2e
 
 任务：
 
-- [ ] 在真实运行时验证 stale/duplicate 请求零输入。
+- [x] 在真实 Node Worker 运行时验证 stale 请求不提交输入、duplicate 请求不重复推进回合。
 - [ ] 验证单写入队列。
 - [ ] 验证 Stop/Take Over。
 - [ ] 让 `walk_to` 在真实地图上运行。
@@ -577,6 +577,11 @@ npm run test:e2e
 - `eval:real` 的控制、打断、技能和可见性用例全部通过。
 
 ### Phase 5：最小可用 Web 产品
+
+2026-10-03 进展：真实 WASM 游戏页已有地图/状态、prompt/手动控制、背包和消息面板，
+并加入离线规则助手及同源模型网关客户端。模型动作需要玩家确认；默认网关为 echo，
+真实 LLM 需用户在服务端自行配置。当前仍是 glyph 字符原型，缺原版图块、可靠视野、
+完整键盘、interaction mode/Stop UI、模型端到端实测与生产 E2E。
 
 任务：
 
@@ -599,7 +604,7 @@ npm run test:e2e
 - [ ] 完善 `npm run bootstrap`。
 - [ ] 支持外部 `NETHACK_SRC`。
 - [ ] 提供构建缓存和离线重建说明。
-- [ ] 提供故障诊断命令 `npm run doctor`。
+- [x] 提供只读故障诊断命令 `npm run doctor`。
 - [ ] 更新 README 快速开始。
 - [ ] 增加发布包、许可证、版本信息和升级流程。
 

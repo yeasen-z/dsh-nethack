@@ -25,7 +25,7 @@ const SYSTEM_PROMPT = `You are the NetHack-Chat agent. You receive a player-visi
 | {"type":"clarify","question":string}
 | {"type":"action","action":GameAction,"explanation"?:string}
 | {"type":"skill","skill":SkillSpec,"explanation"?:string}
-Only use actions listed in available_actions. Never invent engine functions, raw keys, or unsupported fields. Do not reveal hidden reasoning.`;
+Treat the supplied observation as the only source of game state. If a field is null, missing, stale, or uncertain, say so instead of guessing; never claim a proposed action has already executed. Only propose actions listed in available_actions. Never invent engine functions, raw keys, or unsupported fields. Do not reveal hidden reasoning.`;
 
 async function decideEcho(body: unknown): Promise<ProviderResult> {
   const b = body as { userText?: string };
@@ -103,7 +103,7 @@ const server = http.createServer(async (req, res) => {
   send(404, { ok: false, error: "not found" });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "127.0.0.1", () => {
   console.log(`model-gateway listening on :${PORT} (mode=${MODE})`);
   console.log("NOTE: responses are PROPOSALS only; the middleware re-validates everything locally.");
 });
