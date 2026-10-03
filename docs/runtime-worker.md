@@ -31,6 +31,9 @@ Worker output is copied data only:
   menu contents, glyph/map callbacks, window changes, and status callbacks.
 - `input_required` identifies an actual blocking shim boundary (key, text,
   yes/no, menu choice, or `--More--`).
+- Main-command input now uses an explicit `command` kind; generic `key` input
+  is not interchangeable with it. Direction questions from the pinned getdir
+  callback are tagged `direction`.
 
 The shim's `PICK_NONE` menu is emitted as an observation and returned
 immediately; it is not an input boundary. Selectable menus are returned to the
@@ -44,8 +47,9 @@ pointer-valued strings) rather than modifying the pinned upstream runtime.
 
 ## Current limits
 
-This is a protocol probe, not a complete game integration. In particular,
-`status_raw.valueOrPointer` is currently recorded as a raw value/pointer and
-not decoded into typed player status. Rendering currently records glyph events
-but does not provide a polished map UI. Persistence, restart/quit behavior,
-production error recovery, and broader browser coverage remain follow-up work.
+This remains a diagnostic probe. `status_raw` is retained for debugging, while
+new `status` events copy strings and decode condition masks inside the Worker.
+`player_position` and `map_cleared` events accompany map-window callbacks.
+The initial real adapter consumes the decoded events; see `real-adapter.md`.
+The probe logs glyphs without a polished map UI. Visibility/entities/inventory,
+persistence, restart/quit, recovery, and broader browser coverage remain work.

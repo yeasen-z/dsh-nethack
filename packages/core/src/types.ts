@@ -156,6 +156,8 @@ export interface AdapterCapabilities {
   runtime_id: string;
   supports_automatic_text_entry: boolean;
   supports_save_load: boolean;
+  /** False when observation lacks the visibility/entity data needed for skills. */
+  supports_navigation?: boolean;
   supported_actions: GameActionName[];
 }
 

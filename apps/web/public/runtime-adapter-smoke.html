@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Real NetHack middleware diagnostic</title>
+<style>body{font:16px system-ui;max-width:900px;margin:2rem auto}button{margin:.25rem}pre{white-space:pre-wrap}#error{color:#a00}</style>
+<h1>Real NetHack middleware diagnostic</h1>
+<p>This page exercises typed actions through the middleware. Terrain is conservatively remembered; current entities and inventory are not yet available.</p>
+<button id="start">Start real game</button>
+<button data-action="wait" disabled>Wait</button>
+<button data-action="move" data-direction="east" disabled>Move east</button>
+<button data-action="open" data-direction="east" disabled>Open east</button>
+<button data-action="pickup" disabled>Pick up</button>
+<button id="takeover" disabled>Take Over</button>
+<div id="prompt"></div><pre id="state">Not started</pre><pre id="error"></pre>
+<script type="importmap">{"imports":{"@nhchat/core":"../../../packages/core/dist/index.js"}}</script>
+<script type="module">
+import { MiddlewareSession } from "@nhchat/core";
+import { RealWasmAdapter } from "../../../packages/adapter-wasm/dist/index.js";
+
+let session, adapter, sequence = 0;
+const state = document.querySelector("#state"), prompt = document.querySelector("#prompt"), error = document.querySelector("#error");
+async function render() {
+  const observation = await session.observe();
+  state.textContent = JSON.stringify(observation, null, 2);
+  document.querySelectorAll("[data-action]").forEach(button => button.disabled = observation.input.kind !== "command");
+  prompt.replaceChildren();
+  const input = observation.input;
+  if (input.kind === "command" || input.kind === "game_over") return;
+  const title = document.createElement("p");
+  title.textContent = input.kind === "text" ? `Human text entry is not implemented: ${input.purpose}` : `Pending ${input.kind} prompt`;
+  prompt.append(title);
+  const choice = (label, response) => {
+    const button = document.createElement("button"); button.textContent = label;
+    button.onclick = () => run({ action: "respond", promptId: input.promptId, response });
+    prompt.append(button);
+  };
+  if (input.kind === "more") choice("Continue", { kind: "more" });
+  if (input.kind === "yes_no") { choice("Yes", { kind: "yes_no", value: true }); choice("No", { kind: "yes_no", value: false }); }
+  if (input.kind === "direction") choice("East", { kind: "direction", direction: "east" });
+  if (input.kind === "menu") input.options.forEach(option => choice(option.label, { kind: "menu", optionIds: [option.optionId] }));
+  if (input.kind !== "text") choice("Cancel", { kind: "cancel" });
+}
+async function run(action) {
+  let failed = false;
+  document.querySelectorAll("button:not(#takeover)").forEach(button => button.disabled = true);
+  try {
+    const observation = await session.observe();
+    const result = await session.step({ request_id: `browser-${++sequence}`, session_id: session.sessionId,
+      expected_state_version: observation.state_version, control_epoch: session.controlStatus.epoch, source: "human", action });
+    if (["runtime_error", "uncertain_commit_needs_reconciliation"].includes(result.reason)) throw new Error(`Runtime stopped: ${result.reason}. Start a new game; do not retry the input.`);
+    await render();
+    return result;
+  } catch (failure) {
+    failed = true; error.textContent = String(failure); adapter.terminate();
+    document.querySelector("#start").disabled = false;
+    document.querySelector("#takeover").disabled = true;
+    throw failure;
+  }
+  finally { if (!failed) document.querySelector("#takeover").disabled = false; }
+}
+document.querySelector("#start").onclick = async () => {
+  document.querySelector("#start").disabled = true;
+  error.textContent = ""; state.textContent = "Starting real Worker…";
+  window.nhchat = undefined;
+  adapter?.terminate();
+  try {
+    adapter = new RealWasmAdapter(() => new Worker("./runtime-probe.worker.js", { type: "module" }));
+    session = new MiddlewareSession({ session_id: crypto.randomUUID(), adapter, skills: {} });
+    await session.start();
+    document.querySelector("#takeover").disabled = false;
+    await render();
+    // Diagnostic handle for integration tests; all commands still use step().
+    window.nhchat = { session, adapter, run, render };
+  } catch (failure) { error.textContent = String(failure); adapter?.terminate(); document.querySelector("#start").disabled = false; }
+};
+document.querySelectorAll("[data-action]").forEach(button => button.onclick = () => run(button.dataset.direction
+  ? { action: button.dataset.action, direction: button.dataset.direction } : { action: button.dataset.action }));
+document.querySelector("#takeover").onclick = async () => { await session.takeOver(); await render(); };
+window.addEventListener("pagehide", () => adapter?.terminate());
+</script>
+</html>

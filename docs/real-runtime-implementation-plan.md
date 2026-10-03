@@ -541,9 +541,15 @@ npm run test:e2e
 
 ### Phase 3：RealWasmAdapter
 
+2026-10-03 进展：已实现首个真实中间件闭环，详见
+`docs/real-adapter.md`。`RuntimeWorkerClient`、稳定快照发布、状态与地形
+解码、五类动作入口和显式 prompt 响应已接通；真实 Chromium 验收
+10 项通过。当前可见性、实体、背包、可靠层身份和恢复仍未完成，
+`supports_navigation: false` 会阻止真实 `walk_to`；本阶段尚未达到退出条件。
+
 任务：
 
-- [ ] 实现 `RuntimeWorkerClient`。
+- [x] 实现 `RuntimeWorkerClient`（单次输入、超时失效、显式终止）。
 - [ ] 实现 `ObservationBuilder`。
 - [ ] 实现 glyph/terrain/entity 映射。
 - [ ] 实现 prompt 状态机。

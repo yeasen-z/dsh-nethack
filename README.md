@@ -88,6 +88,7 @@ npm ci                     # npm 10.8.2; install exactly from package-lock.json
 npm run typecheck          # compile every package + app
 npm run eval               # scripted-client acceptance suite against the fake runtime
 npm run demo               # full vertical slice: "Walk to that door" -> walk_to -> steps -> takeover
+npm test                   # real adapter transport/contracts + fetch regression tests
 ```
 
 To fetch and compile the pinned original NetHack 5.0 source as WASM:
@@ -109,13 +110,22 @@ owner: human (epoch 4)
 human pickup -> completed: You pick up a potion (unidentified).
 ```
 
-The local `demo` and acceptance suite still use the deterministic fake runtime.
-`npm run bootstrap` currently fetches, builds, and verifies the real game binary;
-the browser Worker bridge and `RealWasmAdapter` are subsequent roadmap work, so the
-binary is not yet wired into the middleware API.
-For a browser-side module-load check after building, open
-`http://127.0.0.1:4173/runtime-smoke.html` while serving `apps/web/public` as
-documented in `docs/runtime-build.md`.
+The local `demo` and default `eval` still use the deterministic fake runtime.
+The real Worker is now connected to `MiddlewareSession` through a first
+`RealWasmAdapter`. After building the runtime:
+
+```bash
+npm run runtime:serve       # middleware diagnostic, loopback port 4173
+npm run eval:real           # actual Chromium + Worker + WASM, separate from fake tests
+```
+
+The browser test uses `CHROMIUM_EXECUTABLE_PATH`, system `/usr/bin/chromium`,
+or Playwright's installed Chromium. If needed, install the pinned Playwright
+browser with `npx playwright install chromium`.
+The diagnostic supports typed movement, waiting, opening, pickup, prompt
+responses and takeover. Current visibility, entities, inventory and save/load
+are still missing; real navigation skills are explicitly disabled. See
+[the real adapter notes](docs/real-adapter.md) for the verified scope.
 
 ## 5. Implementation Status
 
@@ -126,10 +136,10 @@ documented in `docs/runtime-build.md`.
 | Control manager (modes, epochs, lease policy) | Implemented | `packages/core/src/control.ts` |
 | Session core (dedup, staleness, needs_input, Stop/Take over) | Implemented | `packages/core/src/session.ts` |
 | Event log (ordered, replayable trace JSONL) | Implemented | `packages/core/src/events.ts` |
-| WASM adapter boundary + input-state machine | Interface implemented | `GameAdapter` in `packages/adapter-wasm/src/adapter.ts` |
+| WASM adapter boundary + input-state machine | Implemented for the initial real slice | `GameAdapter` in `packages/core/src/types.ts`; `packages/adapter-wasm/src/real-runtime.ts` |
 | Fake runtime for contract testing | Implemented | `fake-runtime.ts` - dev/test only |
 | Pinned NetHack 5.0 WASM build | Implemented | `npm run bootstrap`; source and toolchain pins in `vendor/upstream-lock.json` |
-| Real NetHack Worker bridge and adapter | TODO | Build/run details in `docs/runtime-build.md`; implementation plan in `docs/real-runtime-implementation-plan.md` |
+| Real NetHack Worker bridge and adapter | Initial integration | Typed actions and stable status/terrain observations; current entities, inventory and visibility remain TODO |
 | `walk_to` skill (budgets + stop rules via `step()`) | Implemented | `packages/skills/src/walk-to.ts` |
 | `explore_room` skill | Stub | Explicit gaps documented in source; add after interruption contract proven on real runtime |
 | Agent decision contract + provider abstraction | Implemented | `packages/agent/`; OpenAI-compatible gateway skeleton ready |
@@ -139,7 +149,7 @@ documented in `docs/runtime-build.md`.
 
 ## 6. Roadmap (agreed implementation order)
 
-1. **Runtime integration** - pinned official NetHack 5.0 source now builds and initializes as WASM; next map shim callbacks, input boundaries, menus, and termination in a Worker.
+1. **Runtime integration** - pinned official NetHack 5.0 builds and runs in a Worker through the first real adapter; next complete current visibility, entities, inventory and lifecycle handling.
 2. **Contracts and adapter** - done here (schemas, four primitive actions, scripted client).
 3. **Execution core** - done here (queue, dedup, epochs, events, Stop/Take over; verified before connecting a model).
 4. **First skill** - `walk_to` done; `explore_room` gated on milestone 7 validation.

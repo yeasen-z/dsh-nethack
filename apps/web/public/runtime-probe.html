@@ -99,7 +99,7 @@
             pendingRequestId = data.requestId;
             prompt.textContent = `${data.prompt.label}${data.prompt.choices ? ` [${data.prompt.choices}]` : ""}`;
             form.hidden = false;
-            controls.hidden = data.prompt.kind !== "key";
+            controls.hidden = data.prompt.kind !== "key" && data.prompt.kind !== "command";
             response.value = data.prompt.defaultValue ?? "";
             response.placeholder = data.prompt.kind === "menu" ? "Type an option accelerator" : "Type a response or command key";
             response.focus();

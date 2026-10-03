@@ -6,6 +6,9 @@ let inputSequence = 0;
 let pendingInput = null;
 let nextWindowId = 1;
 const menus = new Map();
+const windowTypes = new Map();
+// Pinned include/botl.h condition bits, copied while the callback is active.
+const conditionNames = ["bare_handed", "blind", "busy", "confused", "deaf", "elf_iron", "flying", "food_poisoned", "glowing_hands", "grabbed", "hallucinating", "held", "icy", "in_lava", "levitating", "paralyzed", "riding", "sleeping", "sliming", "slippery", "stoning", "strangled", "stunned", "submerged", "terminally_ill", "tethered", "trapped", "unconscious", "wounded_legs", "holding"];
 
 function send(message) {
   self.postMessage(message);
@@ -111,6 +114,11 @@ function buildSelection(menu, answer) {
   if (choices.length === 1 && ["", "0", "esc", "escape", "cancel"].includes(choices[0])) return [];
   const selectable = menu.items.filter(menuItemIsSelectable);
   const selected = choices.flatMap((choice) => {
+    // Typed adapter responses use explicit indices, avoiding accelerator aliases.
+    if (/^index:\d+$/.test(choice)) {
+      const item = selectable[Number(choice.slice(6)) - 1];
+      return item ? [item] : [];
+    }
     const byAccelerator = selectable.find((item) => String.fromCharCode(item.accelerator || 0).toLowerCase() === choice);
     if (byAccelerator) return [byAccelerator];
     const index = Number(choice);
@@ -152,11 +160,16 @@ async function handleShim(name, ...args) {
     }
     case "shim_create_nhwindow": {
       const windowId = nextWindowId++;
+      windowTypes.set(windowId, args[0]);
       sendEvent("create_nhwindow", { windowId, windowType: args[0] });
       return windowId;
     }
     case "shim_clear_nhwindow":
       sendEvent("clear_nhwindow", { windowId: args[0] });
+      if (windowTypes.get(args[0]) === 3) sendEvent("map_cleared");
+      return 0;
+    case "shim_curs":
+      if (windowTypes.get(args[0]) === 3) sendEvent("player_position", { x: args[1], y: args[2] });
       return 0;
     case "shim_putstr":
       sendEvent("message", { windowId: args[0], attr: args[1], text: args[2] ?? "" });
@@ -186,7 +199,7 @@ async function handleShim(name, ...args) {
         menus.delete(args[0]);
         return 0;
       }
-      const answer = await waitForInput({ kind: "menu", label: menu.title || "Choose an option", items: menu.items.filter(menuItemIsSelectable).map((item, index) => ({
+      const answer = await waitForInput({ kind: "menu", allowMulti: menu.how === 2, label: menu.title || "Choose an option", items: menu.items.filter(menuItemIsSelectable).map((item, index) => ({
         index: index + 1,
         accelerator: String.fromCharCode(item.accelerator || 0),
         label: item.text,
@@ -210,17 +223,31 @@ async function handleShim(name, ...args) {
       sendEvent("status_init", {});
       return 0;
     case "shim_status_enablefield":
-      sendEvent("status_field", { index: args[0], name: args[1], format: args[2], enabled: args[3] });
+      sendEvent("status_field", { index: args[0], name: moduleRef.UTF8ToString(args[1]), format: moduleRef.UTF8ToString(args[2]), enabled: args[3] });
       return 0;
-    case "shim_status_update":
+    case "shim_status_update": {
       sendEvent("status_raw", {
         fieldIndex: args[0], valueOrPointer: args[1], change: args[2], percent: args[3], color: args[4], colorMasksPointer: args[5],
       });
+      // botl.c sends formatted C strings for every field except BL_CONDITION,
+      // which is a pointer to a 32-bit mask (WASM32 unsigned long).
+      if (args[0] >= 0 && args[1]) {
+        const mask = args[0] === 22 ? moduleRef.getValue(args[1], "i32") >>> 0 : 0;
+        sendEvent("status", { fieldIndex: args[0],
+          value: args[0] === 22 ? mask : moduleRef.UTF8ToString(args[1]),
+          ...(args[0] === 22 ? { conditions: conditionNames.filter((_, index) => mask & (1 << index)) } : {}),
+        });
+      }
       return 0;
+    }
     case "shim_yn_function": {
       const [question, choices, defaultChoice] = args;
       if (String(question).startsWith("Shall I pick")) return "a".charCodeAt(0);
-      const value = await waitForInput({ kind: "yes_no_or_key", label: question, choices: choices ?? "", defaultValue: defaultChoice ?? "" });
+      // This pin routes getdir through yn_function with no response set. Only
+      // recognize its known direction questions; other free-key prompts remain
+      // unsupported text, never silently treated as a command boundary.
+      const direction = !choices && /^In what direction\??/.test(String(question));
+      const value = await waitForInput({ kind: direction ? "direction" : "yes_no_or_key", label: question, choices: choices ?? "", defaultValue: defaultChoice ?? "" });
       const text = String(value ?? defaultChoice ?? "\u001b");
       return text.length ? text.charCodeAt(0) : 27;
     }
@@ -235,7 +262,7 @@ async function handleShim(name, ...args) {
       return text.length ? text.charCodeAt(0) : 32;
     }
     case "shim_nh_poskey": {
-      const value = await waitForInput({ kind: "key", label: "NetHack is waiting for a command" });
+      const value = await waitForInput({ kind: "command", label: "NetHack is waiting for a command" });
       const text = String(value ?? " ");
       return text.length ? text.charCodeAt(0) : 32;
     }
@@ -271,12 +298,17 @@ async function handleShim(name, ...args) {
 async function startGame(name) {
   if (started) throw new Error("This worker already started a game");
   started = true;
-  moduleRef = await createNetHackModule({ noInitialRun: true, print: (text) => sendEvent("stdout", { text }), printErr: (text) => sendEvent("stderr", { text }) });
+  moduleRef = await createNetHackModule({ noInitialRun: true,
+    preRun: [(module) => Object.assign(module.ENV, {
+      USER: name || "NHChat", LOGNAME: name || "NHChat", HOME: "/", HACKDIR: "/",
+      SCOREDIR: "/save/", SAVEDIR: "/save/", LEVELDIR: "/", NETHACKOPTIONS: "number_pad:1,time",
+    })],
+    print: (text) => sendEvent("stdout", { text }), printErr: (text) => sendEvent("stderr", { text }) });
   const fs = moduleRef.FS;
   for (const directory of ["/save", "/tmp"]) {
     if (!fs.analyzePath(directory).exists) fs.mkdir(directory);
   }
-  fs.writeFile("/.nethackrc", "OPTIONS=number_pad:1\nSCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\n");
+  fs.writeFile("/.nethackrc", "OPTIONS=number_pad:1,time\nSCOREDIR=/save/\nSAVEDIR=/save/\nLEVELDIR=/\n");
   moduleRef.ENV.USER = name || "NHChat";
   moduleRef.ENV.LOGNAME = name || "NHChat";
   moduleRef.ENV.HOME = "/";
@@ -284,6 +316,10 @@ async function startGame(name) {
   moduleRef.ENV.SCOREDIR = "/save/";
   moduleRef.ENV.SAVEDIR = "/save/";
   moduleRef.ENV.LEVELDIR = "/";
+  // Explicit runtime options are honored even when the compiled port chooses
+  // a config filename other than /.nethackrc. Required for keypad recipes and
+  // player-visible turn reporting through BL_TIME.
+  moduleRef.ENV.NETHACKOPTIONS = "number_pad:1,time";
   globalThis.nhChatShimCallback = handleShim;
   moduleRef.ccall("shim_graphics_set_callback", null, ["string"], ["nhChatShimCallback"]);
   send({ type: "started", engine: "NetHack 5.0", runtimeId: "nh5.0-wasm-shim@9c3a54d" });

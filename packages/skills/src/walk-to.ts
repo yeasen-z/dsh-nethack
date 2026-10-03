@@ -76,6 +76,9 @@ export const walkToExecutor: SkillExecutor = {
     let obs = await observe();
     let actionsUsed = 0;
     const turnStart = obs.turn;
+    if (obs.capabilities.supports_navigation === false) {
+      return report("blocked", ["walk_to", "navigation_not_supported"], obs, actionsUsed, 0);
+    }
 
     // --- grounding ---------------------------------------------------------
     if (params.level_id !== obs.level_id) {

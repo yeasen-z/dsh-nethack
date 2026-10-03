@@ -1,9 +1,9 @@
 /**
  * Fake NetHack-like runtime + WASM-adapter-shaped bridge.
  *
- * WHY THIS EXISTS: the real NetHack 5.0 WASM shim bridge is milestone 1 of the
- * roadmap (see docs/runtime-spike.md) and has not been pinned/built yet in this
- * repo. To let the middleware contracts be exercised end-to-end NOW, we ship a
+ * WHY THIS EXISTS: the pinned real NetHack 5.0 WASM shim now has an initial
+ * adapter (see docs/real-adapter.md). To keep fast, deterministic middleware
+ * contract tests independent of its browser/toolchain dependencies, we ship a
  * small deterministic engine that follows NetHack-ish rules. It is clearly
  * labeled (`runtime_id: "fake-nh@0.1"`) and MUST NOT be presented as a real
  * game session in any delivered MVP demo.

@@ -1,3 +1,5 @@
 export * from "./fake-runtime.js";
-// Real NetHack 5.0 WASM shim bridge lands here after the runtime spike:
-// export * from "./wasm-bridge.js";
+export * from "./protocol.js";
+export * from "./worker-client.js";
+export * from "./observation-builder.js";
+export * from "./real-runtime.js";

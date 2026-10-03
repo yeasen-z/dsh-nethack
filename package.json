@@ -22,10 +22,14 @@
     "demo": "npm run typecheck && node apps/web/dist/demo.js",
     "eval": "npm run eval:fake",
     "eval:fake": "npm run typecheck && node eval/dist-harness/harness.mjs && node eval/dist-harness/acceptance.mjs",
+    "test": "npm run typecheck && node --test eval/dist-harness/real-adapter-contract.mjs && node eval/runtime-fetch.mjs",
+    "eval:real": "npm run typecheck && npm run runtime:verify && node eval/real-browser.mjs",
+    "runtime:serve": "npm run typecheck && node scripts/serve-runtime.mjs",
     "gateway": "npm run typecheck && node apps/model-gateway/dist/server.js"
   },
   "devDependencies": {
     "@types/node": "20.19.43",
+    "playwright": "1.56.1",
     "typescript": "5.9.3"
   }
 }

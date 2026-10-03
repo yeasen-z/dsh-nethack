@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-03  
 **Repository:** NetHack-Chat  
-**Status:** Phase 2 complete as a browser Worker probe; stop here before Phase 3.
+**Status:** Phase 3 initial real middleware slice implemented and tested; Phase 3 remains incomplete.
 
 ## What is in place
 
@@ -13,6 +13,11 @@
 - A real browser Worker probe and its event/input protocol notes:
   `apps/web/public/runtime-probe.html`,
   `apps/web/public/runtime-probe.worker.js`, and `docs/runtime-worker.md`.
+- `RealWasmAdapter`, `RuntimeWorkerClient`, and `ObservationBuilder`, wired to
+  the existing `MiddlewareSession` in `runtime-adapter-smoke.html`.
+- `npm test`, `npm run eval:real`, and `npm run runtime:serve`;
+  behavior and limitations are documented in `docs/real-adapter.md`.
+- Fetch regression fixes for new no-checkout clones and nested non-Git paths.
 
 ## Verified behavior
 
@@ -25,19 +30,23 @@ inventory menu is observed but does not block for host input. Worker-side
 pointer helpers cover the upstream glue's missing 16-bit and pointer-string
 cases; no C patch was needed for this probe.
 
+The real middleware now decodes HP, maximum HP, turn, conditions, terrain and
+position, publishes observations at stable boundaries, and executes typed
+wait/move/open/pickup/respond. Headless Chromium passes 10 real checks for
+startup, observation stability, actions, stale/duplicate rejection and epoch
+handoff. Ten transport/adapter tests and three fetch regression checks pass.
+The fake suite remains 25 passed, 0 failed, 2 skipped.
+
 ## Known limits / next work
 
-This is deliberately not the production middleware or game UI. The next
-planned phase is Phase 3 in the roadmap: implement `RuntimeWorkerClient` and
-`ObservationBuilder`, decode status fields, map glyphs to terrain/entities,
-model prompts, and implement the MVP action recipes behind the existing
-session/scheduler boundary. Then add adapter contract tests before expanding
-to agent integration.
-
-The probe currently reports status callback pointer/value data without
-decoding it, logs glyphs rather than rendering a polished map, and is not yet
-integrated with the agent loop. Persistence, robust quit/restart, recovery,
-cross-browser coverage, and a production UI remain out of scope for this stage.
+The diagnostic is not a production game UI. Current visibility, entities and
+inventory are incomplete; terrain is conservatively remembered and real
+`walk_to` is blocked through `supports_navigation: false`. Dungeon identity
+uses a conservative map generation. Complete those observation components and
+real pickup/prompt/death scenarios before expanding to agent integration.
+Persistence, robust quit/restart, commit reconciliation, cross-browser coverage
+and a production UI remain outstanding. Transport failures require explicit
+session recreation; inputs are never automatically replayed.
 
 ## Local verification / cleanup
 
@@ -45,10 +54,12 @@ cross-browser coverage, and a production UI remain out of scope for this stage.
 node --check apps/web/public/runtime-probe.worker.js
 npm run runtime:verify
 npm run typecheck
-npm run clean
+npm test
+npm run eval:fake
+npm run eval:real
+npm run runtime:serve
 ```
 
-The last command removes generated build outputs; tracked generated files may
-therefore appear as deletions in the working tree. The built runtime under
-`apps/web/public/runtime/` is ignored and can be recreated with
-`npm run runtime:build`.
+The built runtime under `apps/web/public/runtime/` is ignored and can be
+recreated with `npm run runtime:build`. Avoid routine `npm run clean` during
+environment setup; it can delete tracked generated files in older checkouts.
