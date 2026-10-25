@@ -5,6 +5,12 @@ in [`package.json`](package.json); the market index lists the same strings.
 
 ## Unreleased
 
+- Mark undrawn cells with `░` instead of `?`, which is the engine's scroll glyph,
+  and explain the blind cell in the map key and the persona: it is neither floor
+  nor wall, must not be routed through or assumed reachable.
+- Fix the map key calling `#` rock: `#` is a corridor the character walks through.
+  The persona now names the terrain glyphs (`#` corridor, `|`/`-` walls, `.` floor,
+  `+` door, `<>` stairs) instead of leaving the model to guess which one blocks.
 - Fix cached inventory remaining nonempty after the last item is dropped: the
   engine's `Not carrying anything.` message now clears the cache.
 - Fix the drop test fixture: choose unequipped supplies, wait for real inventory
