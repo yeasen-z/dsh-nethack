@@ -94,9 +94,25 @@ test("DSH's own parser accepts the index and derives the documented install targ
   );
 });
 
-test("the generator reproduces the committed index", () => {
+test("the generator reproduces the committed index", (t) => {
   // The file is generated: if the generator and the file disagree, the published
   // index claims a version or a commit the code does not have.
+  //
+  // A market entry pins the commit that contains it, which is impossible by
+  // construction: the entry is written after that commit exists and shipped by
+  // the next one. So the assertion runs only on a clean tree. That is exactly
+  // the state a contributor is in before committing; while a release-pin commit
+  // is pending, the index deliberately names the parent, and failing here would
+  // make the documented workflow (bump, commit, regenerate, commit, push) red
+  // at every step.
+  const dirty = execFileSync("git", ["status", "--porcelain", "--", "plugins/dsh-nethack"], {
+    cwd: path.resolve(bundleDir, "../.."),
+    encoding: "utf8",
+  }).trim();
+  if (dirty !== "") {
+    t.diagnostic("working tree has uncommitted bundle changes; index is pinned to the previous commit");
+    return;
+  }
   const before = fs.readFileSync(path.join(bundleDir, "market/index.json"), "utf8");
   execFileSync(process.execPath, [path.join(bundleDir, "scripts/market-index.mjs")], { stdio: "pipe" });
   const after = fs.readFileSync(path.join(bundleDir, "market/index.json"), "utf8");
