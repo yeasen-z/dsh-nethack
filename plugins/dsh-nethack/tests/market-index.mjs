@@ -9,6 +9,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { createRequire } from "node:module";
@@ -94,31 +95,34 @@ test("DSH's own parser accepts the index and derives the documented install targ
   );
 });
 
-test("the generator reproduces the committed index", (t) => {
-  // The file is generated: if the generator and the file disagree, the published
-  // index claims a version or a commit the code does not have.
-  //
-  // A market entry pins the commit that contains it, which is impossible by
-  // construction: the entry is written after that commit exists and shipped by
-  // the next one. So the assertion runs only on a clean tree. That is exactly
-  // the state a contributor is in before committing; while a release-pin commit
-  // is pending, the index deliberately names the parent, and failing here would
-  // make the documented workflow (bump, commit, regenerate, commit, push) red
-  // at every step.
-  const dirty = execFileSync("git", ["status", "--porcelain", "--", "plugins/dsh-nethack"], {
-    cwd: path.resolve(bundleDir, "../.."),
-    encoding: "utf8",
-  }).trim();
-  if (dirty !== "") {
-    t.diagnostic("working tree has uncommitted bundle changes; index is pinned to the previous commit");
-    return;
-  }
-  const before = fs.readFileSync(path.join(bundleDir, "market/index.json"), "utf8");
-  execFileSync(process.execPath, [path.join(bundleDir, "scripts/market-index.mjs")], { stdio: "pipe" });
-  const after = fs.readFileSync(path.join(bundleDir, "market/index.json"), "utf8");
+test("the committed index matches what the generator produces from its own commit", (t) => {
+  // A market entry pins the commit that contains it, which no file can do: the
+  // entry is written after that commit exists and shipped by the next one. So
+  // this compares the file against the generator run INSIDE HEAD's tree, not
+  // against the working tree: on a clean checkout every release-pin commit then
+  // agrees with itself, and the earlier check that always ran red is gone.
+  const repoRoot = path.resolve(bundleDir, "../..");
+  const git = (...args) => execFileSync("git", ["-C", repoRoot, ...args], { encoding: "utf8", maxBuffer: 1 << 24 });
+  const committedIndex = git("show", "HEAD:plugins/dsh-nethack/market/index.json");
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dsh-nethack-index-"));
   try {
-    assert.equal(after, before, "run scripts/market-index.mjs and commit the result");
+    // HEAD's bundle, extracted so the generator reads HEAD's package.json and icon.
+    git("archive", "--format=tar", "HEAD", "plugins/dsh-nethack", "-o", path.join(tmp, "head.tar"));
+    execFileSync("tar", ["-xf", path.join(tmp, "head.tar"), "-C", tmp]);
+    // The extraction is not a git checkout, so git has to look at THIS
+    // repository for HEAD, its timestamp and the branch state.
+    const gitEnv = {
+      ...process.env,
+      GIT_DIR: path.resolve(repoRoot, git("rev-parse", "--absolute-git-dir").split("\n")[0].trim()),
+      GIT_WORK_TREE: tmp,
+    };
+    const generated = execFileSync(process.execPath, [path.join(tmp, "plugins/dsh-nethack/scripts/market-index.mjs")], { encoding: "utf8", env: gitEnv });
+    const produced = fs.readFileSync(path.join(tmp, "plugins/dsh-nethack/market/index.json"), "utf8");
+    if (produced !== committedIndex) {
+      t.diagnostic(generated);
+    }
+    assert.equal(produced, committedIndex, "regenerate the index inside the release commit");
   } finally {
-    fs.writeFileSync(path.join(bundleDir, "market/index.json"), before);
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
 });

@@ -17,7 +17,8 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const bundleDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const repoRoot = path.resolve(bundleDir, "../..");
+// `GIT_WORK_TREE` lets the tests run this generator over an extracted commit.
+const repoRoot = process.env.GIT_WORK_TREE ? path.resolve(process.env.GIT_WORK_TREE) : path.resolve(bundleDir, "../..");
 const indexPath = path.join(bundleDir, "market/index.json");
 const packagePath = path.join(bundleDir, "package.json");
 
