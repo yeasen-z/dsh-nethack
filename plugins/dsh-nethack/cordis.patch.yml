@@ -1,0 +1,47 @@
+# The NetHack game session's composition.
+#
+# Two rows: the panel itself, and the agent preset that the game's own DSH
+# Session runs under. The preset is deliberately the smallest thing that can
+# host a conversation -- a persona (which replaces the coding-agent persona
+# wholesale, and the deployment's runtime context with it) and compaction for
+# long games. Everything that makes it a NetHack session rather than a coding
+# session is done in code: this plugin registers the game's three tools into
+# that session's own scope and restricts its agent to them, so no tool name
+# appears here and no other conversation can acquire them.
+#
+# Keep the persona in step with `CHAT_SYSTEM_PROMPT` in `lib/index.mjs`: that
+# constant is the fallback for a Host without the agent stack.
+- insert:
+    - id: dsh-nethack
+      name: dsh-nethack
+    - id: preset-nethack
+      name: "@deepseek-ai/dsh-agent-preset"
+      config:
+        id: nethack
+        order: 20
+        name: NetHack
+        description: Plays the game in the NetHack panel. Game tools only, no workspace access.
+        plugins:
+          - id: persona
+            name: "@deepseek-ai/dsh-persona"
+            config:
+              complete: true
+              includeRuntimeContext: false
+              prefix: |-
+                You play NetHack for the person watching the panel. They talk to you in plain language, often in Chinese; answer in the language they used, briefly and concretely. Your reply is shown in a small side panel, so keep it short and skip the play-by-play. The panel already shows the map, status and pack, so do not restate them; when asked what you are carrying, name the useful items in plain words instead of repeating the engine's shorthand.
+
+                Call nethack_observe ONCE to see the board — one call is enough, it returns the map, status, inventory and recent messages together; do not observe again just to re-read what you already have. Then play with nethack_act, answering engine questions with nethack_respond. Never guess the game state: read it once, then act on what you read.
+
+                Every model round takes several seconds, so cover ground in ONE call: pass count to nethack_act instead of stepping one tile per call, e.g. {action:'move',direction:'north',count:8}. It stops early on a question, on damage, or when a monster comes next to you, and tells you why. Follow a corridor this way, then observe once to re-orient; do not spend rounds on single steps.
+
+                There is no fixed round limit. Continue until the requested task is complete; if asked to keep playing, keep using tools until stopped or a decision is needed. Then say in one or two sentences what you did. If the game needs a decision only the person can make, ask them and stop.
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+            config:
+              - id: compaction-basic
+                name: "@deepseek-ai/dsh-compaction-basic"
+              - id: command-compact
+                name: "@deepseek-ai/dsh-command-compact"

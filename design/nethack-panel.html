@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NetHack 面板 · 设计稿</title>
+<style>
+  /* TOKEN MAPPING — this prototype hardcodes colours so it opens anywhere, but
+     the real panel must NOT: it uses the Harness theme tokens so it follows
+     light/dark automatically.
+       --bg       -> --dsw-alias-bg-base
+       --layer1   -> --dsw-alias-bg-layer-1
+       --layer2   -> --dsw-alias-bg-layer-2
+       --overlay  -> --dsw-alias-bg-overlay
+       --line1    -> --dsw-alias-border-l1
+       --line2    -> --dsw-alias-border-l2
+       --label1   -> --dsw-alias-label-primary
+       --label2   -> --dsw-alias-label-secondary
+       --label3   -> --dsw-alias-label-secondary (at reduced opacity)
+       --brand    -> --dsw-alias-brand-primary
+       --ok       -> --dsw-alias-state-success-primary
+       --warn     -> --dsw-alias-state-warn-primary
+       --bad      -> --dsw-alias-state-error-primary
+     Everything below is dark values only so the screenshot is deterministic. */
+  :root{
+    --bg:#0f1115; --layer1:#171a21; --layer2:#1e222b; --overlay:#252a35;
+    --line1:#2b303b; --line2:#3a4150;
+    --label1:#e6e9ef; --label2:#98a1b3; --label3:#656d7d;
+    --brand:#7c9cff; --ok:#5cc98b; --warn:#e8b04b; --bad:#e2686f;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#08090c;color:var(--label1);font-family:var(--sans);
+    display:flex;justify-content:center;padding:28px 16px;min-height:100vh}
+
+  /* ===== the DSH window, so the design is judged in context ===== */
+  .win{width:min(1180px,100%);height:760px;background:var(--bg);border:1px solid var(--line1);
+    border-radius:12px;overflow:hidden;display:flex;flex-direction:column;
+    box-shadow:0 24px 70px rgb(0 0 0/.6)}
+  .win-bar{height:40px;flex:none;display:flex;align-items:center;gap:9px;padding:0 12px;
+    background:#12151b;border-bottom:1px solid var(--line1);font-size:12px;color:var(--label3)}
+  .win-dots{display:flex;gap:6px}
+  .win-dots i{width:10px;height:10px;border-radius:50%;background:#2f3543}
+  .win-body{flex:1;display:flex;min-height:0}
+
+  /* ===== rail: the single @ entry, unframed ===== */
+  .rail{width:52px;flex:none;background:#12151b;border-right:1px solid var(--line1);
+    display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px}
+  .rail-entry{width:34px;height:34px;display:grid;place-items:center;border-radius:8px;
+    font-family:var(--mono);font-size:17px;font-weight:600;color:var(--label3);cursor:pointer;
+    transition:background .12s,color .12s}
+  .rail-entry:hover{background:var(--overlay);color:var(--label1)}
+  .rail-entry[aria-current="true"]{background:rgb(124 156 255/.14);color:var(--brand)}
+  .rail-sep{width:20px;height:1px;background:var(--line1);margin:6px 0}
+
+  /* ===== the panel ===== */
+  .panel{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+  .panel-head{flex:none;display:flex;align-items:center;gap:10px;padding:11px 16px;
+    border-bottom:1px solid var(--line1)}
+  .panel-title{font-size:13px;font-weight:600;letter-spacing:.01em}
+  .panel-sub{font-size:11px;color:var(--label3);font-family:var(--mono)}
+  .spacer{flex:1}
+
+  /* stage: the map, and it is the hero */
+  .stage{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .stage-scroll{flex:3 1 0;min-height:0;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:0}
+
+  .mapwrap{position:relative;border-radius:10px;background:#0b0d11;
+    border:1px solid var(--line1);padding:14px;display:grid;place-items:center;
+    flex:1 1 auto;min-height:0;overflow:auto}
+  .mapgrid{font-family:var(--mono);font-size:13.5px;line-height:1.18;letter-spacing:0;
+    white-space:pre;color:#8d96a8;user-select:none}
+  .mapgrid .row{height:1.18em}
+  .g-wall{color:#4a5262} .g-floor{color:#39404d} .g-corridor{color:#39404d}
+  .g-door{color:#a9743f} .g-stair{color:#e8e2c8;font-weight:700}
+  .g-player{color:var(--brand);font-weight:700;text-shadow:0 0 12px rgb(124 156 255/.65)}
+  .g-monster{color:var(--bad)} .g-item{color:var(--warn)} .g-pet{color:var(--ok)}
+
+  .hud{display:flex;align-items:center;gap:18px;padding:11px 14px;margin-top:12px;
+    border-radius:10px;background:var(--layer1);border:1px solid var(--line1)}
+  .hud .k{display:flex;flex-direction:column;gap:1px}
+  .hud .k b{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.1}
+  .hud .k span{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--label3)}
+  .hud .vsep{width:1px;align-self:stretch;background:var(--line1)}
+  .hud .hp b{color:var(--ok)}
+  .pills{display:flex;gap:5px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+  .pill{font-size:10px;padding:3px 8px;border-radius:999px;background:var(--overlay);
+    color:var(--label2);border:1px solid var(--line1)}
+  .pill.warn{color:var(--warn);border-color:rgb(232 176 75/.3);background:rgb(232 176 75/.1)}
+
+  /* collapsed rows, part of the same surface */
+                .inv{display:flex;flex-direction:column;gap:3px;font-size:12px}
+
+  /* ===== ticker: one line above the map, opens in place ===== */
+  .ticker{margin-bottom:12px;border-radius:8px;overflow:hidden;
+    background:var(--layer1);border:1px solid var(--line1)}
+  .ticker > summary{display:flex;align-items:center;gap:8px;padding:7px 11px;
+    font-size:11.5px;color:var(--label1);cursor:pointer;list-style:none}
+  .ticker > summary::-webkit-details-marker{display:none}
+  .ticker > summary::before{content:"▸";font-size:9px;color:var(--label3);flex:none}
+  .ticker[open] > summary::before{content:"▾"}
+  .ticker-text{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ticker-count{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--label3)}
+  .ticker-body{padding:0 11px 9px 29px;border-top:1px solid var(--line1)}
+  .msgs{margin:7px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;
+    max-height:150px;overflow:auto}
+  .msgs li{font-size:11px;color:var(--label2);line-height:1.4}
+  .msgs li.latest{color:var(--brand)}
+
+  /* ===== below the map: pack left (narrow), chat right (wide) ===== */
+  .dock{flex:2 1 0;min-height:210px;max-height:55%;display:flex;align-items:stretch;gap:10px;
+    border-top:1px solid var(--line1);background:linear-gradient(180deg,#12151b,#0f1115);
+    padding:12px 16px 14px}
+  .pack{flex:0 0 clamp(150px,22%,230px);display:flex;flex-direction:column;min-height:0;
+    border-radius:10px;overflow:hidden;background:var(--layer1);border:1px solid var(--line2)}
+  .pack-head{flex:none;display:flex;align-items:center;gap:6px;padding:8px 11px;
+    font-size:11px;font-weight:600;color:var(--label2);text-transform:uppercase;
+    letter-spacing:.05em;border-bottom:1px solid var(--line1)}
+  .pack-count{margin-left:auto;font-family:var(--mono);font-weight:400;font-size:10px;
+    opacity:.75;letter-spacing:0}
+  .pack-body{flex:1 1 auto;min-height:0;overflow:auto;padding:8px 11px 10px}
+  .inv{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px;font-size:12px}
+  .inv .grp{font-size:10px;color:var(--label3);margin-top:7px;letter-spacing:.04em}
+  .inv .grp:first-child{margin-top:0}
+  .inv .it{display:flex;gap:8px;color:var(--label1)}
+  .inv .it em{font-family:var(--mono);font-style:normal;color:var(--brand);width:14px;flex:none}
+  .inv .it span{overflow-wrap:anywhere}
+
+  .chat{flex:1 1 auto;min-width:0;min-height:0;display:flex;flex-direction:column;gap:10px;
+    overflow:hidden}
+  @media (max-height:520px){ .dock{min-height:0} }
+  .log{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;gap:9px;overflow:auto;
+    padding-right:2px}
+  .msg{font-size:12.5px;line-height:1.55;max-width:88%}
+  .msg.user{align-self:flex-end;background:rgb(124 156 255/.16);color:#dbe4ff;
+    padding:7px 11px;border-radius:11px 11px 3px 11px}
+  .msg.ai{align-self:flex-start;color:var(--label1)}
+  .msg.ai .who{font-size:10px;color:var(--label3);margin-bottom:3px;font-family:var(--mono)}
+  .steps{margin-top:6px;border-left:2px solid var(--line2);padding-left:9px;
+    display:flex;flex-direction:column;gap:3px}
+  .step{font-size:10.5px;color:var(--label3);font-family:var(--mono);display:flex;gap:6px;align-items:baseline}
+  .step .nm{color:var(--label2)}
+  .step .det{color:var(--label3)}
+  .step.fail .nm{color:var(--bad)}
+  .caret{display:inline-block;width:2px;height:1em;background:currentColor;vertical-align:text-bottom;
+    margin-left:2px;animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  .composer{flex:none;display:flex;gap:8px;align-items:flex-end}
+  .composer input{flex:1;background:var(--layer2);border:1px solid var(--line2);border-radius:9px;
+    padding:10px 12px;color:var(--label1);font:inherit;font-size:12.5px;outline:none}
+  .composer input:focus{border-color:rgb(124 156 255/.6);box-shadow:0 0 0 3px rgb(124 156 255/.14)}
+  .composer input::placeholder{color:var(--label3)}
+  .send{background:var(--brand);color:#0b1020;border:0;border-radius:9px;padding:0 15px;
+    height:38px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+  .chips{flex:none;display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:11px;padding:5px 10px;border-radius:999px;background:var(--layer2);
+    border:1px solid var(--line1);color:var(--label2);cursor:pointer}
+  .chip:hover{border-color:var(--line2);color:var(--label1)}
+
+  .annot{position:absolute;font-size:10px;color:var(--brand);font-family:var(--mono);
+    background:rgb(124 156 255/.1);border:1px solid rgb(124 156 255/.35);border-radius:5px;
+    padding:2px 7px;pointer-events:none;white-space:nowrap}
+  /* GLYPH CEILING: the panel caps the map at 13.5px (fitFontSize), so the mockup
+     uses the same number. Above the cap the map would claim height from the dock. */
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="win-bar">
+    <div class="win-dots"><i></i><i></i><i></i></div>
+    <span>DeepSeek Harness</span>
+  </div>
+  <div class="win-body">
+    <!-- one entry, an unframed @ -->
+    <nav class="rail">
+      <div class="rail-entry" aria-current="true" title="NetHack">@</div>
+      <div class="rail-sep"></div>
+      <div class="rail-entry" title="计时">◷</div>
+      <div class="rail-entry" title="设置">⚙</div>
+    </nav>
+
+    <main class="panel">
+      <div class="panel-head">
+        <span class="panel-title">NetHack</span>
+        <span class="panel-sub">Dlvl:1 · turn 42</span>
+        <span class="spacer"></span>
+        <span class="pill">命令提示</span>
+      </div>
+
+      <div class="stage">
+        <div class="stage-scroll">
+          <!-- the engine message line: one row, click to open the history -->
+          <details class="ticker">
+            <summary>
+              <span class="ticker-text">你感到有些饿了。</span>
+              <span class="ticker-count">3</span>
+            </summary>
+            <div class="ticker-body">
+              <ul class="msgs">
+                <li class="latest">你感到有些饿了。</li>
+                <li>你在这里看到一把匕首。</li>
+                <li>欢迎来到 NetHack！</li>
+              </ul>
+            </div>
+          </details>
+
+          <!-- map is the hero -->
+          <div class="mapwrap">
+            <div class="mapgrid" id="map"></div>
+          </div>
+
+          <!-- facts row -->
+          <div class="hud">
+            <div class="k hp"><b>16/16</b><span>生命</span></div>
+            <div class="k"><b>3</b><span>防御</span></div>
+            <div class="vsep"></div>
+            <div class="k"><b>Dlvl:1</b><span>位置</span></div>
+            <div class="k"><b>0</b><span>金币</span></div>
+            <div class="k"><b>42</b><span>回合</span></div>
+            <div class="pills">
+              <span class="pill warn">饥饿</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- pack on the left (narrow), conversation on the right (wide) -->
+      <div class="dock">
+        <aside class="pack">
+          <div class="pack-head">背包<span class="pack-count">6</span></div>
+          <div class="pack-body">
+            <ul class="inv">
+              <li class="grp">武器</li>
+              <li class="it"><em>a</em><span>长剑</span></li>
+              <li class="it"><em>b</em><span>匕首（手持）</span></li>
+              <li class="grp">护甲</li>
+              <li class="it"><em>c</em><span>皮甲（穿在身上）</span></li>
+              <li class="grp">食物</li>
+              <li class="it"><em>d</em><span>2 份口粮</span></li>
+              <li class="it"><em>e</em><span>苹果</span></li>
+              <li class="grp">其他</li>
+              <li class="it"><em>f</em><span>治疗药水</span></li>
+            </ul>
+          </div>
+        </aside>
+
+        <section class="chat">
+          <div class="log">
+            <div class="msg user">先往北探索，看到楼梯就下去</div>
+            <div class="msg ai">
+              <div class="who">assistant</div>
+              我向北走了 8 格，撞到一堵墙后停下。左前方有个关着的门，
+              我用「open」打开了它，现在站在走廊入口。<span class="caret"></span>
+              <div class="steps">
+                <div class="step"><span class="nm">nethack_observe</span><span class="det">读地图</span></div>
+                <div class="step"><span class="nm">nethack_act</span><span class="det">move north ×8</span></div>
+                <div class="step"><span class="nm">nethack_act</span><span class="det">open</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="composer">
+            <input placeholder="告诉它你想做什么…" value="继续往下走，捡起地上的东西">
+            <button class="send">发送</button>
+          </div>
+          <div class="chips">
+            <span class="chip">附近有什么？</span>
+            <span class="chip">我背包里有什么？</span>
+            <span class="chip">自动探索这一层</span>
+            <span class="chip">我受伤了吗？</span>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+// The level grid is generated and verified (equal row widths, corridors only in
+// the gaps between rooms, every door punched into a wall with floor on both
+// sides, every actor on real floor). Hand-picked coordinates were wrong three
+// times running, so the geometry is derived instead.
+const level = [
+  "                                                ",
+  "                        |-------------|         ",
+  "   |--------------|     |.............|         ",
+  "   |..............|     |.............|         ",
+  "   |..............+#####+.............|         ",
+  "   |..............|     |.............|         ",
+  "   |..............|     |------+------|         ",
+  "   |--------------|            #                ",
+  "                               #                ",
+  "                          |----+--------|       ",
+  "                          |.............|       ",
+  "                          |.............|       ",
+  "                   #######+.............|       ",
+  "                          |.............|       ",
+  "                          |............>|       ",
+  "                          |-------------|       ",
+  "                                                "
+];
+const hero = { x: 4, y: 3 };
+const pet  = { x: 5, y: 3 };
+const rat  = { x: 33, y: 12 };
+
+function classify(ch, x, y) {
+  if (x === hero.x && y === hero.y) return "g-player";
+  if (x === pet.x && y === pet.y) return "g-pet";
+  if (x === rat.x && y === rat.y) return "g-monster";
+  if (ch === "#") return "g-corridor";
+  if (ch === "|" || ch === "-") return "g-wall";
+  if (ch === "+") return "g-door";
+  if (ch === ">") return "g-stair";
+  if (ch === ".") return "g-floor";
+  return "";
+}
+function glyphAt(ch, x, y) {
+  if (x === hero.x && y === hero.y) return "@";
+  if (x === pet.x && y === pet.y) return "d";
+  if (x === rat.x && y === rat.y) return "r";
+  if (ch === ".") return " ";
+  return ch;
+}
+const map = document.getElementById("map");
+level.forEach((line, y) => {
+  const row = document.createElement("div");
+  row.className = "row";
+  [...line].forEach((ch, x) => {
+    const span = document.createElement("span");
+    const g = glyphAt(ch, x, y);
+    span.className = classify(ch, x, y);
+    span.textContent = g;
+    row.appendChild(span);
+  });
+  map.appendChild(row);
+});
+
+// Collapsible rows, matching the real component's behaviour.
+document.querySelectorAll(".rows").forEach((row) => {
+  row.querySelector(".row-head").addEventListener("click", () => {
+    row.dataset.open = row.dataset.open === "true" ? "false" : "true";
+  });
+});
+</script>
+</body>
+</html>

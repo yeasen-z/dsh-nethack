@@ -2,6 +2,37 @@
 
 > **Play NetHack with natural language.**
 
+## Install the DeepSeek Harness plugin
+
+The playable DSH plugin includes the NetHack WASM engine, map, inventory, manual
+controls, and a separate native game conversation. No engine compilation or npm
+publication is needed.
+
+```sh
+git clone https://github.com/yeasen-z/dsh-nethack-chatplay.git
+cd dsh-nethack-chatplay
+```
+
+In your **DeepSeek Harness** session, ask:
+
+> Install the local bundle at `/absolute/path/to/dsh-nethack-chatplay/plugins/dsh-nethack` using the plugin manager. Enable both the NetHack plugin and its nethack agent preset.
+
+Approve the installation. Refresh DSH, then open the **@ / NetHack** panel.
+Configure a working model in DSH to use game chat; manual controls do not require
+an LLM. The plugin was exercised with DSH `0.2.1-rc.3`; other versions are not
+verified. The complete plugin guide is [here](<plugins/dsh-nethack/README.md>).
+
+**Update:** run `git pull --ff-only`, then ask DSH to reinstall the same local
+bundle. Do not hand-edit your DSH profile or install the whole repository as an
+npm package: the installable bundle is the plugin subdirectory.
+
+**Limits:** one live game per Host process. Switching panels preserves the same
+game conversation. Plugin reload keeps the live engine, but quitting the Host
+ends the in-memory game; durable chat history is not a saved NetHack game.
+Model calls use your configured provider and may incur charges.
+
+---
+
 NetHack-Chat is a **middleware and interaction layer that exposes NetHack as a language-controllable environment** for humans and LLM agents. The human and the AI operate *the same character in the same game session*: language can query, propose, execute, or delegate; direct controls always remain available through the same execution authority.
 
 The core deliverable is the **NetHack-Chat Middleware**: a reusable, model-independent interface for observing the game (`observe()`), executing typed actions (`step()`), running bounded skills (`executeSkill()`), and managing human/AI control ownership (`stop()` / `takeOver()`). **NetHack-Chat Web** is its first client; a future evaluation runner uses the same contracts.

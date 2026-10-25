@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "NetHack 地牢",
+    "description": "与模型一起玩 NetHack：Host 插件在 worker 线程中运行 NetHack 3.6.7 WASM 引擎，提供观察/行动/应答工具，并在右侧边栏中以标签页形式实时显示地图、状态与背包。"
+  }
+}

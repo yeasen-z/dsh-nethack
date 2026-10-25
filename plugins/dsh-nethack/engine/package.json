@@ -1,0 +1,41 @@
+{
+  "name": "@neth4ck/wasm-367",
+  "version": "2.1.2",
+  "description": "NetHack 3.6.7 WebAssembly build artifacts",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./build/nethack.js": "./build/nethack.js",
+    "./build/nethack.wasm": "./build/nethack.wasm"
+  },
+  "files": [
+    "src/",
+    "build/nethack.js",
+    "build/nethack.wasm",
+    "LICENSE.md",
+    "README.md"
+  ],
+  "keywords": [
+    "nethack",
+    "wasm",
+    "webassembly",
+    "roguelike",
+    "game"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apowers313/neth4ck-monorepo",
+    "directory": "packages/wasm-367"
+  },
+  "author": "Adam Powers <apowers@ato.ms>",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "./build-wasm.sh",
+    "lint": "eslint src/"
+  }
+}

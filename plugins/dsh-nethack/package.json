@@ -1,0 +1,37 @@
+{
+  "name": "dsh-nethack",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Play NetHack inside DeepSeek Harness: a Host plugin runs the NetHack WASM engine on a worker thread and exposes observe/act/respond tools to the model, with the live game as a central panel opened from a top-left \"@\" entry.",
+  "exports": {
+    ".": "./lib/index.mjs",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "lib/*.mjs",
+    "lib/client.js",
+    "engine/src/index.js",
+    "engine/build/nethack.js",
+    "engine/build/nethack.wasm",
+    "engine/LICENSE.md",
+    "engine/README.md",
+    "engine/package.json",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": []
+    }
+  }
+}

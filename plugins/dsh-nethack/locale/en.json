@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "NetHack",
+    "description": "Play NetHack with the model: a Host plugin runs the NetHack 3.6.7 WASM engine on a worker thread and exposes observe/act/respond tools, with a live map, status, and pack tab in the right sidebar."
+  }
+}
