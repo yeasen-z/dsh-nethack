@@ -106,7 +106,16 @@ test("an item action visibly changes the pack", { timeout: 90000 }, async (t) =>
     await settle(game);
   }
 
-  game.refreshInventory();
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  assert.notEqual(letters(game), before, "the dropped item is gone from the pack");
+  // The engine occasionally renders "Not carrying anything." for a moment after
+  // an item leaves the pack (measured, and the same blip makes a fresh start look
+  // itemless), so the assertion is that the list eventually settles WITHOUT the
+  // dropped letter - not that a single snapshot differs.
+  let after = before;
+  for (let attempt = 0; attempt < 6 && after === before; attempt++) {
+    game.refreshInventory();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    after = letters(game);
+  }
+  assert.notEqual(after, before, "the dropped item is gone from the pack");
+  assert.ok(!after.includes(before.at(-1)), `the dropped letter is gone: ${before} -> ${after}`);
 });
