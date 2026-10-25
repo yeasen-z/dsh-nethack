@@ -519,6 +519,12 @@ export class NetHackGame {
       }
       case "message": {
         if (typeof event.text !== "string" || !event.text.trim()) return;
+        // NetHack 3.6.7 reports an actually empty inventory as a message, not
+        // a PICK_NONE menu. Without this the last item stays cached forever.
+        if (event.text.trim() === "Not carrying anything.") {
+          this.inventory = [];
+          this.#publish({ type: "inventory", inventory: this.inventory });
+        }
         this.messages.push(event.text);
         if (this.messages.length > 200) {
           // Drop the oldest and shift the "already reported" marker with them, or

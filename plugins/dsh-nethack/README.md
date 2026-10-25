@@ -131,24 +131,59 @@ it. Other sessions keep their own tools and Team functionality.
 - Cross-machine installation has not been tested. Source tests and installed
   registration checks do not replace a test on your DSH version.
 
-## Development
+## Development and release checks
+
+Run source tests from a full git checkout, with the engine dependency installed:
 
 ```sh
-node --test plugins/dsh-nethack/tests/*.mjs        # 57 tests, incl. real-engine ones
-node plugins/dsh-nethack/scripts/market-index.mjs  # regenerate market/index.json
-npm pack --dry-run --prefix plugins/dsh-nethack    # what a registry install receives
+node --test plugins/dsh-nethack/tests/*.mjs
+# Inspect the plugin package, NOT the workspace root package:
+(cd plugins/dsh-nethack && npm pack --dry-run)
 ```
 
-The release workflow is: bump `version` in `package.json`, commit, run the
-generator, commit the index, push. The market pins an exact commit, so the SHA
-must be on the remote before the index that names it — a market install of an
-unknown commit fails at fetch time. `tests/market-index.mjs` validates the index
-with DSH's own `parseMarketIndex` and fails if the generator would change the
-committed file.
+The DSH parser integration test is explicitly **skipped** when its package is
+not resolvable. Structural tests passing does not establish DSH parser acceptance.
+For a release, point at an accessible, installed or extracted DSH parser module
+and require that check (a missing/broken parser then fails instead of skipping):
 
-The engine tests start their own worker, never the Host's live game. A randomly
-generated starting character is occasionally itemless; those tests retry the
-start rather than assert on the dice.
+```sh
+DSH_MARKET_VALIDATOR=/absolute/path/to/dsh-plugin-market-index/lib/index.js \
+DSH_REQUIRE_MARKET_VALIDATOR=1 \
+node --test plugins/dsh-nethack/tests/market-index.mjs
+```
+
+Do not modify DSH or its profile to run this check. Ordinary Node cannot read
+inside Electron's `app.asar`; use an accessible package or an extracted copy.
+The validator version should match the DSH release you are verifying.
+
+### Publishing an index
+
+1. Finish the release code, update the package version and changelog, then commit
+   those bundle changes. The generator refuses uncommitted bundle files (except
+   its output index), so the index cannot claim unpublished working-tree code.
+2. Push the release-code commit. From the repository root run:
+   `node plugins/dsh-nethack/scripts/market-index.mjs`.
+3. Run the required-parser check above. Tests compare the **current** manifest,
+   icon and generator output against the complete index using its pinned SHA
+   and timestamp; they also read the pinned commit's manifest and timestamp.
+   No fields are silently excluded, and HEAD need not equal the release pin.
+4. Commit the generated index separately, then push that index commit. The index
+   pins the earlier release-code commit, not its own commit: **do not regenerate
+   merely to chase every new index-only commit**.
+5. Fetch the public index URL without credentials, parse it, and check that its
+   pinned commit can be fetched anonymously. An index is only a declaration;
+   local tests cannot prove remote accessibility or installation in DSH's GUI.
+
+The generator checks whether the release SHA is reachable from **local
+`origin/main`**. This is a tracking snapshot, not a network check; stale refs,
+missing refs or incomplete history require manual verification. It warns when
+that snapshot does not contain the release or cannot be checked.
+
+The inventory tests use standalone Wizard games, wait for inventory events, and
+select unequipped items. Dropping worn armor is correctly refused by NetHack;
+repeated refreshes cannot make that action succeed. Tests assert the exact
+remaining items and separately verify that a genuinely empty pack clears the
+cached inventory. No test operates the Host's live game.
 
 ## Source layout
 

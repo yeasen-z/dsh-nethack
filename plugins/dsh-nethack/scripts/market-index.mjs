@@ -1,92 +1,78 @@
 #!/usr/bin/env node
-// Regenerate `market/index.json` from git, so the published index cannot drift
-// from the code it points at.
-//
-// A market entry is a claim about ONE commit: the installer pins that SHA and
-// never follows the branch. Hand-editing the file is therefore how a stale SHA,
-// a stale version or a stale compatibility range gets published. Run this after
-// merging what you intend to publish, then commit the regenerated file.
-//
-// The version listed is this bundle's own `package.json` version and the commit
-// is HEAD, so the workflow is: bump the version, commit, run this, commit the
-// index. `--print-install` prints the install target a market user would get,
-// which is the quickest way to check that the pinned commit is the intended one.
+// Commit the release code first, then generate and commit its index separately.
+// An index pins release code; it does not need to contain its own commit hash.
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const bundleDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-// `GIT_WORK_TREE` lets the tests run this generator over an extracted commit.
-const repoRoot = process.env.GIT_WORK_TREE ? path.resolve(process.env.GIT_WORK_TREE) : path.resolve(bundleDir, "../..");
-const indexPath = path.join(bundleDir, "market/index.json");
-const packagePath = path.join(bundleDir, "package.json");
-
-const git = (...args) => execFileSync("git", ["-C", repoRoot, ...args], { encoding: "utf8" }).trim();
-
-// With `GIT_WORK_TREE` set (tests regenerate HEAD's own copy) HEAD names the
-// commit whose bundle is extracted, which is the commit the user is publishing.
-// Without it, HEAD is simply the current commit.
-
-const manifest = JSON.parse(fs.readFileSync(packagePath, "utf8"));
-const commit = git("rev-parse", "HEAD");
-const committedAt = Number(git("log", "-1", "--format=%ct", "HEAD"));
-const branchBehind = (() => {
-  try {
-    return git("rev-list", "--count", `HEAD..origin/main`);
-  } catch {
-    return "unknown";
-  }
-})();
-
 const repositoryUrl = "https://github.com/yeasen-z/dsh-nethack";
-const engines = manifest.engines?.dsh;
-if (!engines) throw new Error("package.json must declare engines.dsh: the market cannot state compatibility without it");
+const git = (repo, ...args) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim();
 
-const current = JSON.parse(fs.readFileSync(indexPath, "utf8"));
-const previous = current.plugins?.find((entry) => entry.name === manifest.name);
-const iconPath = path.join(bundleDir, "icon.svg");
-const icon = `data:image/svg+xml;base64,${fs.readFileSync(iconPath).toString("base64")}`;
-
-const version = {
-  version: manifest.version,
-  publishTimestamp: committedAt,
-  source: { type: "git", url: repositoryUrl, commit, path: "plugins/dsh-nethack" },
-  engines: { dsh: engines },
-};
-
-// One entry per version, newest kept first by the reader itself. Keeping the old
-// ones lets someone install a version they already run instead of being forced
-// onto HEAD.
-const keptVersions = (previous?.versions ?? []).filter((entry) => entry.version !== version.version);
-const plugin = {
-  ...previous,
-  name: manifest.name,
-  title: previous?.title ?? { en: "NetHack", zh: "NetHack 地牢" },
-  description: previous?.description ?? {
-    en: "Play NetHack inside DSH: the real NetHack 3.6.7 WASM engine in a panel, driven by you with the arrow pad or by the model through three isolated game tools.",
-    zh: "在 DSH 里玩真正的 NetHack：面板里是 NetHack 3.6.7 WASM 引擎，你可以用方向键盘玩，也可以让模型通过三个隔离的游戏工具替你玩。",
-  },
-  icon,
-  author: previous?.author ?? "yeasen-z",
-  homepage: repositoryUrl,
-  repository: { url: repositoryUrl, directory: "plugins/dsh-nethack" },
-  metadata: {
-    ...(previous?.metadata ?? { category: "games", keywords: ["nethack", "roguelike", "game", "wasm", "agent"], labels: ["nethack", "agent-play"] }),
-    sortKeys: { added: committedAt },
-  },
-  versions: [version, ...keptVersions],
-};
-
-const next = { ...current, plugins: [plugin, ...(current.plugins ?? []).filter((entry) => entry.name !== manifest.name)] };
-fs.writeFileSync(indexPath, `${JSON.stringify(next, null, 2)}\n`);
-
-const spec = `git+${repositoryUrl}.git#${commit}&path:/plugins/dsh-nethack`;
-console.log(`index.json: ${manifest.name}@${manifest.version}`);
-console.log(`  commit:  ${commit} (${new Date(committedAt * 1000).toISOString()})`);
-console.log(`  engines: ${engines}`);
-console.log(`  install: ${spec}`);
-if (branchBehind !== "unknown" && Number(branchBehind) > 0) {
-  console.log(`  WARNING: main is ${branchBehind} commit(s) ahead of origin/main — the pinned commit is not published yet.`);
+// This is a local tracking-ref check, NOT proof of live remote accessibility.
+export function publicationStatus(repo, commit) {
+  const result = spawnSync("git", ["-C", repo, "merge-base", "--is-ancestor", commit, "origin/main"], { encoding: "utf8" });
+  if (result.error) throw result.error;
+  if (result.status === 0) return "reachable";
+  if (result.status === 1) return "unpublished";
+  return "unknown";
 }
-if (process.argv.includes("--print-install")) console.log(spec);
+
+export function buildMarketIndex({ current, manifest, icon, commit, timestamp }) {
+  if (!manifest.engines?.dsh) throw new Error("package.json must declare engines.dsh");
+  if (!/^[0-9a-f]{40}$/.test(commit)) throw new Error("release commit must be a full SHA");
+  if (!Number.isSafeInteger(timestamp) || timestamp <= 0) throw new Error("invalid release timestamp");
+  const previous = current.plugins?.find((entry) => entry.name === manifest.name);
+  const version = {
+    version: manifest.version,
+    publishTimestamp: timestamp,
+    source: { type: "git", url: repositoryUrl, commit, path: "plugins/dsh-nethack" },
+    engines: { dsh: manifest.engines.dsh },
+  };
+  const plugin = {
+    ...previous,
+    name: manifest.name,
+    title: previous?.title ?? { en: "NetHack", zh: "NetHack 地牢" },
+    description: previous?.description ?? {
+      en: "Play NetHack inside DSH with manual controls and an isolated game conversation.",
+      zh: "在 DSH 里通过手动操作或独立游戏对话玩 NetHack。",
+    },
+    icon,
+    author: previous?.author ?? "yeasen-z",
+    homepage: repositoryUrl,
+    repository: { url: repositoryUrl, directory: "plugins/dsh-nethack" },
+    metadata: {
+      ...(previous?.metadata ?? { category: "games", keywords: ["nethack", "roguelike", "game", "wasm", "agent"], labels: ["nethack", "agent-play"] }),
+      sortKeys: { ...previous?.metadata?.sortKeys, added: previous?.metadata?.sortKeys?.added ?? timestamp },
+    },
+    versions: [version, ...(previous?.versions ?? []).filter((entry) => entry.version !== version.version)],
+  };
+  return { ...current, plugins: [plugin, ...(current.plugins ?? []).filter((entry) => entry.name !== manifest.name)] };
+}
+
+function main() {
+  const args = process.argv.slice(2);
+  if (args.some((arg) => arg !== "--print-install")) throw new Error("usage: node scripts/market-index.mjs [--print-install]");
+  const bundleDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const repo = path.resolve(bundleDir, "../..");
+  const indexPath = path.join(bundleDir, "market/index.json");
+  // Ignore the index itself: it is the output, committed AFTER the release code.
+  const dirty = git(repo, "status", "--porcelain", "--", "plugins/dsh-nethack", ":(exclude)plugins/dsh-nethack/market/index.json");
+  if (dirty) throw new Error("Commit bundle changes before generating a release index; HEAD must contain the published code.");
+  const manifest = JSON.parse(fs.readFileSync(path.join(bundleDir, "package.json"), "utf8"));
+  const commit = git(repo, "rev-parse", "HEAD");
+  const timestamp = Number(git(repo, "log", "-1", "--format=%ct", commit));
+  const current = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+  const icon = `data:image/svg+xml;base64,${fs.readFileSync(path.join(bundleDir, "icon.svg")).toString("base64")}`;
+  const next = buildMarketIndex({ current, manifest, icon, commit, timestamp });
+  fs.writeFileSync(indexPath, `${JSON.stringify(next, null, 2)}\n`);
+  const spec = `git+${repositoryUrl}.git#${commit}&path:/plugins/dsh-nethack`;
+  console.log(`index.json: ${manifest.name}@${manifest.version}\n  commit: ${commit}\n  install: ${spec}`);
+  const status = publicationStatus(repo, commit);
+  if (status === "unpublished") console.warn("WARNING: release commit is not reachable from local origin/main; push release code before publishing the index.");
+  if (status === "unknown") console.warn("WARNING: cannot check origin/main (missing ref or incomplete history); publication status is unknown.");
+  if (status === "reachable") console.log("  release is reachable from local origin/main (tracking snapshot only; not a network check).");
+  if (args.includes("--print-install")) console.log(spec);
+}
+
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url))) main();

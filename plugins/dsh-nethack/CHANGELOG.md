@@ -3,6 +3,18 @@
 All notable changes to the `dsh-nethack` bundle. The version here is the version
 in [`package.json`](package.json); the market index lists the same strings.
 
+## Unreleased
+
+- Fix cached inventory remaining nonempty after the last item is dropped: the
+  engine's `Not carrying anything.` message now clears the cache.
+- Fix the drop test fixture: choose unequipped supplies, wait for real inventory
+  updates, and verify all remaining items rather than accepting an empty pack.
+- Replace the reversed ahead/behind warning with a local `origin/main`
+  reachability check; explicitly report unknown publication status.
+- Make missing DSH parser validation a visible skip, with a required-parser
+  release mode. Check the full generated index against current source inputs
+  and verify the pinned manifest and timestamp without chasing HEAD hashes.
+
 ## 0.1.0 — 2026-10-25
 
 First public bundle. Playable, with the engine, panel and isolated game
