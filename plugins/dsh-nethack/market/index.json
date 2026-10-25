@@ -83,7 +83,7 @@
           "source": {
             "type": "git",
             "url": "https://github.com/yeasen-z/dsh-nethack-chatplay",
-            "commit": "b74d7204aaa20afb9ef00de5dbc6425333b38aac",
+            "commit": "514cfad0cc757b1373d8d36d89091368cef3cb53",
             "path": "plugins/dsh-nethack"
           },
           "engines": {
