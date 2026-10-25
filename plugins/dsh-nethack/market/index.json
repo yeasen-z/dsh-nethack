@@ -73,17 +73,17 @@
           "agent-play"
         ],
         "sortKeys": {
-          "added": 1792940594
+          "added": 1792940608
         }
       },
       "versions": [
         {
           "version": "0.1.0",
-          "publishTimestamp": 1792940594,
+          "publishTimestamp": 1792940608,
           "source": {
             "type": "git",
             "url": "https://github.com/yeasen-z/dsh-nethack",
-            "commit": "2de10769b0fab8397ab9f4d4a6ed68f58b19d55c",
+            "commit": "6c843eaec8d80be6c46f77e1097ba5e7121462b3",
             "path": "plugins/dsh-nethack"
           },
           "engines": {
