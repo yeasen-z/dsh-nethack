@@ -79,11 +79,11 @@
       "versions": [
         {
           "version": "0.1.0",
-          "publishTimestamp": 1792941703,
+          "publishTimestamp": 1792946094,
           "source": {
             "type": "git",
             "url": "https://github.com/yeasen-z/dsh-nethack",
-            "commit": "ab26deac89f421f8a83f43e76c5b32bab337a13c",
+            "commit": "77d99860e518d9dc704a5ec6e2e4df0d69a545ff",
             "path": "plugins/dsh-nethack"
           },
           "engines": {
