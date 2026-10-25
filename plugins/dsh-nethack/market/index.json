@@ -73,17 +73,17 @@
           "agent-play"
         ],
         "sortKeys": {
-          "added": 1792938916
+          "added": 1792938971
         }
       },
       "versions": [
         {
           "version": "0.1.0",
-          "publishTimestamp": 1792938916,
+          "publishTimestamp": 1792938971,
           "source": {
             "type": "git",
             "url": "https://github.com/yeasen-z/dsh-nethack-chatplay",
-            "commit": "9ef02b0af7c1bd80c808283101145725c3bdccc7",
+            "commit": "324c4363854993840cdcfef1596cd534359c6c0d",
             "path": "plugins/dsh-nethack"
           },
           "engines": {
