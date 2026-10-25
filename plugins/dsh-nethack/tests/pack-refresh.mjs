@@ -35,6 +35,27 @@ async function pastPages(game) {
 const items = (game) => game.observe().inventory.filter((item) => !item.header);
 const letters = (game) => items(game).map((item) => item.letter).join("");
 
+/**
+ * Start a game whose character carries something.
+ *
+ * A few random starts really are empty ("Not carrying anything.", measured once
+ * in ~25 runs), and such a run cannot show that a refresh filled the pack or that
+ * an item action changed it. Retrying the start keeps the assertions about the
+ * refresh instead of about the dice.
+ */
+async function startWithItems(name, minimum = 2) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const game = new NetHackGame({ moduleUrl, name: `${name}${attempt}` });
+    game.start();
+    await pastPages(game);
+    game.refreshInventory();
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    if (items(game).length >= minimum) return game;
+    await game.stop();
+  }
+  throw new Error(`could not start a ${name} character with ${minimum} items`);
+}
+
 test("a refresh fills the pack without spending a turn", { timeout: 40000 }, async (t) => {
   const game = new NetHackGame({ moduleUrl, name: "PackRefresh" });
   t.after(() => game.stop());
@@ -68,13 +89,9 @@ test("the next key still works after a refresh", { timeout: 40000 }, async (t) =
   assert.equal(game.observe().turn, turn + 1, "the key was delivered, not swallowed by the display");
 });
 
-test("an item action visibly changes the pack", { timeout: 40000 }, async (t) => {
-  const game = new NetHackGame({ moduleUrl, name: "PackDrop" });
+test("an item action visibly changes the pack", { timeout: 90000 }, async (t) => {
+  const game = await startWithItems("PackDrop");
   t.after(() => game.stop());
-  game.start();
-  await pastPages(game);
-  game.refreshInventory();
-  await new Promise((resolve) => setTimeout(resolve, 400));
   const before = letters(game);
   assert.ok(before.length >= 2, `need two items to drop one: ${before}`);
 

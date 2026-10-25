@@ -387,7 +387,14 @@ export function neighboursLine(observation) {
 
 function blockedHint(observation, direction) {
   const occupant = occupantAt(observation, direction);
-  if (!occupant) return null;
+  if (!occupant) {
+    // Nothing stands there, so this was solid rock. Supplying the unexplored
+    // sides turns "blocked" into the next thing to try, instead of an answer the
+    // model has to guess its way out of (one spent a long reply apologising for
+    // a dead end it had read off blank cells).
+    const unseen = unseenDirectionsLine(observation);
+    return `rock and nothing else. ${unseen ?? "Every side of you has been seen; this stretch is closed — go back the way you came."}`;
+  }
   if (occupant.pet) {
     return `"${occupant.glyph}" there is ${occupant.label}. Moving into it swaps places with your follower instead of walking — press the same direction again to trade places, and do not attack it.`;
   }
@@ -608,11 +615,35 @@ function renderMap(observation) {
     let row = "";
     for (let x = minX; x <= maxX; x++) {
       const tile = at.get(`${x},${y}`);
-      row += tile ? tile.text : " ";
+      // A cell nothing has drawn is UNSEEN, not a wall. Leaving it blank made the
+      // model read an unexplored gap as solid rock and announce a dead end it had
+      // never checked (its "then my map must be wrong" reply was the second cost).
+      row += tile ? tile.text : "?";
     }
-    lines.push(row.replace(/\s+$/, ""));
+    lines.push(row.replace(/ {2,}/g, " ").replace(/\s+$/, ""));
   }
   return lines.join("\n");
+}
+
+/** One-line key for `?`, spelled out where the map is printed. */
+export const MAP_KEY = "'?' marks a cell you have NOT seen yet — it is unknown, not a wall. Only '#' is rock.";
+
+/**
+ * Which directions from the player have never been drawn.
+ *
+ * Stated next to the map so "is this a dead end?" is answerable from the output
+ * instead of from a guess about blank space.
+ */
+export function unseenDirectionsLine(observation) {
+  const player = observation?.player;
+  if (!player) return null;
+  const drawn = new Set((observation.tiles ?? []).map((t) => `${t.x},${t.y}`));
+  const unseen = [];
+  for (const [name, dx, dy] of COMPASS) {
+    if (!drawn.has(`${player.x + dx},${player.y + dy}`)) unseen.push(name);
+  }
+  if (!unseen.length) return null;
+  return `unseen beside you: ${unseen.join(", ")} — those cells could be open floor.`;
 }
 
 /**
@@ -906,7 +937,10 @@ function registerTools(ctx) {
           lines.push("options:", ...options.map((i) => `  ${menuKey(i)}${i.text}`));
         }
       }
-      lines.push("", "Map:", renderMap(observation));
+      lines.push("", "Map:", renderMap(observation), MAP_KEY);
+      // Say which sides are still dark, so "dead end" is answered by the output.
+      const unseenHere = unseenDirectionsLine(observation);
+      if (unseenHere) lines.push(unseenHere);
       if (observation.inventory?.length) {
         // The last inventory list the engine displayed. Headers group the items
         // below them and carry no reply key.
@@ -998,7 +1032,9 @@ function registerTools(ctx) {
         }
         const fresh = newMessages(instance, state);
         if (fresh.length) lines.push("", "New messages:", ...fresh.slice(-10).map((m) => `  ${m}`));
-        lines.push("", "Map:", renderMap(state));
+        lines.push("", "Map:", renderMap(state), MAP_KEY);
+        const unseenHere = unseenDirectionsLine(state);
+        if (unseenHere) lines.push(unseenHere);
         return lines.join("\n");
       }
       const run = await actRepeated(instance, args ?? {}, exec.signal);
@@ -1014,6 +1050,7 @@ function registerTools(ctx) {
           "",
           "Map:",
           renderMap(state),
+          MAP_KEY,
         ].join("\n");
       }
       if (run.performed === 0) {
@@ -1079,7 +1116,7 @@ function registerTools(ctx) {
       }
       const recentText = recent.join(" ").toLowerCase();
       if (/\b(killed|die|died|death)\b/.test(recentText) && !after.alive) lines.push("", "The game has ended.");
-      lines.push("", "Map:", renderMap(after));
+      lines.push("", "Map:", renderMap(after), MAP_KEY);
       return lines.join("\n");
     },
   });
@@ -1147,7 +1184,7 @@ function registerTools(ctx) {
       if (after.prompt) lines.push(...answerLines(after.prompt));
       const fresh = newMessages(instance, after);
       if (fresh.length) lines.push("", "New messages:", ...fresh.slice(-10).map((m) => `  ${m}`));
-      lines.push("", "Map:", renderMap(after));
+      lines.push("", "Map:", renderMap(after), MAP_KEY);
       return lines.join("\n");
     },
   });
@@ -1179,6 +1216,7 @@ function registerTools(ctx) {
         "",
         "Map:",
         renderMap(observation),
+        MAP_KEY,
       ].join("\n");
     },
   });
