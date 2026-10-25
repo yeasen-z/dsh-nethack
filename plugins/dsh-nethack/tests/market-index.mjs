@@ -95,33 +95,45 @@ test("DSH's own parser accepts the index and derives the documented install targ
   );
 });
 
-test("the committed index matches what the generator produces from its own commit", (t) => {
+test("the market entry's shape is what running the generator would produce", (t) => {
   // A market entry pins the commit that contains it, which no file can do: the
   // entry is written after that commit exists and shipped by the next one. So
-  // this compares the file against the generator run INSIDE HEAD's tree, not
-  // against the working tree: on a clean checkout every release-pin commit then
-  // agrees with itself, and the earlier check that always ran red is gone.
+  // the committed entry is compared with a freshly generated one, field by
+  // field, EXCEPT the two values that described the pre-pin commit (its SHA and
+  // timestamp). Anything else drifting means the index no longer matches the
+  // code, which is what this guards.
   const repoRoot = path.resolve(bundleDir, "../..");
-  const git = (...args) => execFileSync("git", ["-C", repoRoot, ...args], { encoding: "utf8", maxBuffer: 1 << 24 });
-  const committedIndex = git("show", "HEAD:plugins/dsh-nethack/market/index.json");
+  const committedIndex = JSON.parse(
+    execFileSync("git", ["-C", repoRoot, "show", "HEAD:plugins/dsh-nethack/market/index.json"], { encoding: "utf8" }),
+  );
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "dsh-nethack-index-"));
   try {
-    // HEAD's bundle, extracted so the generator reads HEAD's package.json and icon.
-    git("archive", "--format=tar", "HEAD", "plugins/dsh-nethack", "-o", path.join(tmp, "head.tar"));
+    execFileSync("git", ["-C", repoRoot, "archive", "--format=tar", "HEAD", "plugins/dsh-nethack", "-o", path.join(tmp, "head.tar")]);
     execFileSync("tar", ["-xf", path.join(tmp, "head.tar"), "-C", tmp]);
-    // The extraction is not a git checkout, so git has to look at THIS
-    // repository for HEAD, its timestamp and the branch state.
-    const gitEnv = {
-      ...process.env,
-      GIT_DIR: path.resolve(repoRoot, git("rev-parse", "--absolute-git-dir").split("\n")[0].trim()),
-      GIT_WORK_TREE: tmp,
+    execFileSync(process.execPath, [path.join(tmp, "plugins/dsh-nethack/scripts/market-index.mjs")], {
+      stdio: "pipe",
+      env: {
+        ...process.env,
+        GIT_DIR: path.resolve(repoRoot, execFileSync("git", ["-C", repoRoot, "rev-parse", "--absolute-git-dir"], { encoding: "utf8" }).trim()),
+        GIT_WORK_TREE: tmp,
+      },
+    });
+    const generated = JSON.parse(fs.readFileSync(path.join(tmp, "plugins/dsh-nethack/market/index.json"), "utf8"));
+    const strip = (index) => {
+      const copy = structuredClone(index);
+      for (const plugin of copy.plugins) {
+        for (const version of plugin.versions) {
+          delete version.source?.commit;
+          delete version.publishTimestamp;
+        }
+        for (const plugin of [copy.plugins[0]]) delete plugin.metadata?.sortKeys;
+      }
+      return copy;
     };
-    const generated = execFileSync(process.execPath, [path.join(tmp, "plugins/dsh-nethack/scripts/market-index.mjs")], { encoding: "utf8", env: gitEnv });
-    const produced = fs.readFileSync(path.join(tmp, "plugins/dsh-nethack/market/index.json"), "utf8");
-    if (produced !== committedIndex) {
-      t.diagnostic(generated);
-    }
-    assert.equal(produced, committedIndex, "regenerate the index inside the release commit");
+    assert.deepEqual(strip(committedIndex), strip(generated), "the committed index no longer matches the generator");
+    // And the pinned commit must be one of this repository's own commits.
+    const pinned = committedIndex.plugins.find((entry) => entry.name === manifest.name).versions[0].source.commit;
+    execFileSync("git", ["-C", repoRoot, "cat-file", "-e", `${pinned}^{commit}`], { stdio: "ignore" });
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

@@ -24,6 +24,10 @@ const packagePath = path.join(bundleDir, "package.json");
 
 const git = (...args) => execFileSync("git", ["-C", repoRoot, ...args], { encoding: "utf8" }).trim();
 
+// With `GIT_WORK_TREE` set (tests regenerate HEAD's own copy) HEAD names the
+// commit whose bundle is extracted, which is the commit the user is publishing.
+// Without it, HEAD is simply the current commit.
+
 const manifest = JSON.parse(fs.readFileSync(packagePath, "utf8"));
 const commit = git("rev-parse", "HEAD");
 const committedAt = Number(git("log", "-1", "--format=%ct", "HEAD"));
