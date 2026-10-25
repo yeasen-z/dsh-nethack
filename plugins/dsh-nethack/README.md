@@ -82,6 +82,13 @@ worker remains until the Host exits so a temporary reload does not reset it.
 - A chat startup error includes its actual binding detail. It does not imply the
   engine needs a restart. Check the model configuration and report the complete
   error before using the destructive New game button.
+- **`engines.dsh` is not declared.** DSH refuses an install whose declared
+  requirement the runtime does not satisfy, and a market entry cannot omit a
+  compatibility statement either. Verified only against 0.2.1-rc.3, so publishing
+  needs a deliberate range (and every release tested against it).
+- **Chat needs a working model/provider** configured in the target DSH. Without
+  one the panel and key controls still work, but the conversation cannot answer.
+
 - Plugin source tests and installed registration checks do not replace testing
   on the target DSH version. Cross-machine installation has not yet been tested.
 
