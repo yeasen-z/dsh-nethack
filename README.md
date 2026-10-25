@@ -17,10 +17,19 @@ In your **DeepSeek Harness** session, ask:
 
 > Install the local bundle at `/absolute/path/to/dsh-nethack-chatplay/plugins/dsh-nethack` using the plugin manager. Enable both the NetHack plugin and its nethack agent preset.
 
+The bundle can also be installed straight from this repository, pinned to a
+commit, without cloning:
+
+```json
+{"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack-chatplay.git#<commit>&path:/plugins/dsh-nethack"}
+```
+
 Approve the installation. Refresh DSH, then open the **@ / NetHack** panel.
 Configure a working model in DSH to use game chat; manual controls do not require
-an LLM. The plugin was exercised with DSH `0.2.1-rc.3`; other versions are not
-verified. The complete plugin guide is [here](<plugins/dsh-nethack/README.md>).
+an LLM. The plugin declares `engines.dsh` (`>=0.2.1-rc.3 <0.3.0`) so an
+incompatible Host refuses it, but only `0.2.1-rc.3` was actually exercised. The
+complete plugin guide, including the npm and plugin-market paths, is
+[here](<plugins/dsh-nethack/README.md>).
 
 **Update:** run `git pull --ff-only`, then ask DSH to reinstall the same local
 bundle. Do not hand-edit your DSH profile or install the whole repository as an

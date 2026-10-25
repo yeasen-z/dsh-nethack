@@ -8,21 +8,46 @@ shows the game the model is playing.
 
 ## Install
 
-Tested interactively with **DSH 0.2.1-rc.3**. Other versions are not verified.
-Use a desktop/local Node-based DSH Host with the native conversation UI and
-session controller available. No external game server or WASM compiler is needed.
+Requires **DSH `>=0.2.1-rc.3 <0.3.0`** (declared as `engines.dsh`, so an
+incompatible Host refuses the install instead of failing at runtime). Verified
+interactively on 0.2.1-rc.3 only: a newer 0.2.x Host is allowed by the range but
+has not been exercised. Use a desktop/local Node-based DSH Host with the native
+conversation UI and session controller available. No external game server or
+WASM compiler is needed.
+
+### From the Git repository
 
 ```sh
 git clone https://github.com/yeasen-z/dsh-nethack-chatplay.git
-cd dsh-nethack-chatplay
 ```
 
-Ask DSH to install the local bundle at the absolute path to
-`plugins/dsh-nethack` using its plugin manager. For an agent with that tool:
+Then ask DSH to install the bundle straight from the repository (pin the commit:
+a moving branch would make the installed copy change under you):
+
+```json
+{"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack-chatplay.git#<commit>&path:/plugins/dsh-nethack"}
+```
+
+### From a local checkout
+
+Point the plugin manager at the absolute path to `plugins/dsh-nethack`:
 
 ```json
 {"action":"install_bundle","target":"/absolute/path/to/dsh-nethack-chatplay/plugins/dsh-nethack"}
 ```
+
+### From npm, once published
+
+The package is prepared for the registry (`license`, `repository`, `keywords`,
+`engines.dsh`; the manifest is packed from this directory, not from the repo
+root). After `npm publish` from this directory:
+
+```json
+{"action":"install_bundle","target":"dsh-nethack@0.1.0"}
+```
+
+For a plugin market, the entry for a version is `source: {"type":"npm"}` plus
+`engines: {"dsh":">=0.2.1-rc.3 <0.3.0"}`, the same range the manifest declares.
 
 Approve the installation and enable the NetHack plugin and its `nethack` preset.
 Refresh the page, then open **@ / NetHack** in the sidebar. The plugin also
@@ -82,12 +107,13 @@ worker remains until the Host exits so a temporary reload does not reset it.
 - A chat startup error includes its actual binding detail. It does not imply the
   engine needs a restart. Check the model configuration and report the complete
   error before using the destructive New game button.
-- **`engines.dsh` is not declared.** DSH refuses an install whose declared
-  requirement the runtime does not satisfy, and a market entry cannot omit a
-  compatibility statement either. Verified only against 0.2.1-rc.3, so publishing
-  needs a deliberate range (and every release tested against it).
+- **Only 0.2.1-rc.3 is verified.** `engines.dsh` admits the rest of 0.2.x, so a
+  newer 0.2.x Host installs the bundle without having been tested; widen or
+  narrow the range deliberately when you test another version.
 - **Chat needs a working model/provider** configured in the target DSH. Without
   one the panel and key controls still work, but the conversation cannot answer.
+- **One live game per Host process**, and the game lives in memory: quitting DSH
+  ends the run. Persisted chat history is not persisted NetHack progress.
 
 - Plugin source tests and installed registration checks do not replace testing
   on the target DSH version. Cross-machine installation has not yet been tested.
