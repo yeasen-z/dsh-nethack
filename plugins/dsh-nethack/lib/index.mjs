@@ -392,8 +392,8 @@ function blockedHint(observation, direction) {
     // sides turns "blocked" into the next thing to try, instead of an answer the
     // model has to guess its way out of (one spent a long reply apologising for
     // a dead end it had read off blank cells).
-    const unseen = unseenDirectionsLine(observation);
-    return `rock and nothing else. ${unseen ?? "Every side of you has been seen; this stretch is closed — go back the way you came."}`;
+    const blind = blindDirectionsLine(observation);
+    return `rock and nothing else. ${blind ?? "Every side of you has been seen; this stretch is closed — go back the way you came."}`;
   }
   if (occupant.pet) {
     return `"${occupant.glyph}" there is ${occupant.label}. Moving into it swaps places with your follower instead of walking — press the same direction again to trade places, and do not attack it.`;
@@ -618,32 +618,60 @@ function renderMap(observation) {
       // A cell nothing has drawn is UNSEEN, not a wall. Leaving it blank made the
       // model read an unexplored gap as solid rock and announce a dead end it had
       // never checked (its "then my map must be wrong" reply was the second cost).
-      row += tile ? tile.text : "?";
+      // `?` is NOT usable for this: it is the engine's scroll glyph. U+2591 is
+      // never painted by the engine, so the two can never be confused, and its
+      // light texture reads as fog instead of a solid black block.
+      row += tile ? tile.text : BLIND_CELL;
     }
     lines.push(row.replace(/ {2,}/g, " ").replace(/\s+$/, ""));
   }
   return lines.join("\n");
 }
 
-/** One-line key for `?`, spelled out where the map is printed. */
-export const MAP_KEY = "'?' marks a cell you have NOT seen yet — it is unknown, not a wall. Only '#' is rock.";
+/**
+ * The mark this module writes for a cell the engine has never drawn.
+ *
+ * Named "blind", not "unseen": a `░` cell is not merely unexplored ground you
+ * have not walked past yet, it is a cell the engine has given you NO information
+ * about. That distinction is the whole point — the model must not read `░` as
+ * "floor over there waiting to be visited", still less as a wall it can rule
+ * out, and it must not assume every `░` region is reachable. Treat it as blind
+ * terrain: go and look, and let the move report what is actually there.
+ */
+export const BLIND_CELL = "░";
 
 /**
- * Which directions from the player have never been drawn.
+ * One line explaining `░`, printed under every map.
+ *
+ * Deliberately explicit about the three mistakes the model made with a blank or
+ * `?` fill (calling it a wall, calling it reachable floor, confusing it with the
+ * engine's scroll glyph) AND about the terrain symbols it would otherwise guess
+ * at. `#` is a corridor, not rock: nethackwiki's Corridor page defines it as a
+ * "passageway connecting rooms", and walls are `|` and `-`. An earlier version of
+ * this key called `#` rock, which would have taught the model to avoid every
+ * corridor on the map.
+ */
+export const MAP_KEY =
+  `'${BLIND_CELL}' marks a blind cell: the engine has not told you what is there, ` +
+  `so it is neither floor you may walk to nor a wall — you cannot see it, so do not plan a route through it or call it explored. ` +
+  `'#' is a CORRIDOR and you can walk through it; '|' and '-' are walls. A '?' is a scroll.`;
+
+/**
+ * Which directions from the player are blind (never drawn by the engine).
  *
  * Stated next to the map so "is this a dead end?" is answerable from the output
  * instead of from a guess about blank space.
  */
-export function unseenDirectionsLine(observation) {
+export function blindDirectionsLine(observation) {
   const player = observation?.player;
   if (!player) return null;
   const drawn = new Set((observation.tiles ?? []).map((t) => `${t.x},${t.y}`));
-  const unseen = [];
+  const blind = [];
   for (const [name, dx, dy] of COMPASS) {
-    if (!drawn.has(`${player.x + dx},${player.y + dy}`)) unseen.push(name);
+    if (!drawn.has(`${player.x + dx},${player.y + dy}`)) blind.push(name);
   }
-  if (!unseen.length) return null;
-  return `unseen beside you: ${unseen.join(", ")} — those cells could be open floor.`;
+  if (!blind.length) return null;
+  return `blind beside you: ${blind.join(", ")} — the engine has told you nothing about these cells.`;
 }
 
 /**
@@ -939,8 +967,8 @@ function registerTools(ctx) {
       }
       lines.push("", "Map:", renderMap(observation), MAP_KEY);
       // Say which sides are still dark, so "dead end" is answered by the output.
-      const unseenHere = unseenDirectionsLine(observation);
-      if (unseenHere) lines.push(unseenHere);
+      const blindHere = blindDirectionsLine(observation);
+      if (blindHere) lines.push(blindHere);
       if (observation.inventory?.length) {
         // The last inventory list the engine displayed. Headers group the items
         // below them and carry no reply key.
@@ -1033,8 +1061,8 @@ function registerTools(ctx) {
         const fresh = newMessages(instance, state);
         if (fresh.length) lines.push("", "New messages:", ...fresh.slice(-10).map((m) => `  ${m}`));
         lines.push("", "Map:", renderMap(state), MAP_KEY);
-        const unseenHere = unseenDirectionsLine(state);
-        if (unseenHere) lines.push(unseenHere);
+        const blindHere = blindDirectionsLine(state);
+        if (blindHere) lines.push(blindHere);
         return lines.join("\n");
       }
       const run = await actRepeated(instance, args ?? {}, exec.signal);
