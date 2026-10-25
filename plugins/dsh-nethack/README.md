@@ -1,8 +1,10 @@
 # dsh-nethack
 
-Play NetHack inside DeepSeek Harness: a bundled NetHack 3.6.7 WASM engine,
-live map, inventory, manual controls, and a separate **native DSH Session** for
-natural-language game instructions. Main chat and game chat remain separate.
+Play NetHack inside DeepSeek Harness: a Host plugin runs the upstream NetHack
+WASM engine on a worker thread and exposes it to the model as tools; the Client
+plugin renders the live game as a central panel reached from a single top-left
+entry. Hand-play and model-play drive the *same* engine, so the panel always
+shows the game the model is playing.
 
 ## Install
 
@@ -105,9 +107,11 @@ fixture fail (“no hands”).
 - `lib/session.mjs`: game Session binding, model tool filtering and execution guard.
 - `lib/client.js`: panel, session reuse, native conversation occurrence and controls.
 - `lib/game.mjs`, `lib/engine-worker.mjs`: engine state and worker bridge.
-- `engine/`: bundled NetHack engine and upstream license/provenance notes.
 
-Project license: [repository license](<../../LICENSE>). NetHack redistribution
-is governed by its bundled [license](<engine/LICENSE.md>); see the engine
-[provenance notes](<engine/README.md>) before redistribution. The WASM binary is
-included intentionally so recipients do not need a native build toolchain.
+Engine: the NetHack 3.6.7 WASM build is **not vendored here**. `package.json`
+pins the published upstream package `@neth4ck/wasm-367@2.1.2`
+([neth4ck-monorepo](https://github.com/apowers313/neth4ck-monorepo), NetHack
+General Public License), so installation fetches the official artifact, its
+license and its npm provenance. Verify it with `npm view @neth4ck/wasm-367`
+before installing, and read its `LICENSE.md` before redistributing anything.
+Project license: [repository license](<../../LICENSE>).

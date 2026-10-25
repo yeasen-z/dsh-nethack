@@ -1,6 +1,7 @@
 // Run: node --test plugins/dsh-nethack/tests/direction-engine.mjs
 // Starts a standalone WASM worker; never touches the Host's live game slot.
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
 import test from "node:test";
 import { NetHackGame, DIRECTIONS } from "../lib/game.mjs";
 
@@ -40,7 +41,7 @@ async function askDirection(game) {
 }
 
 test("actual engine: direction classification, numpad replies and no buffered stray commands", { timeout: 25000 }, async (t) => {
-  const game = new NetHackGame({ moduleUrl: new URL("../engine/src/index.js", import.meta.url).href, name: "DirectionTest" });
+  const game = new NetHackGame({ moduleUrl: createRequire(import.meta.url).resolve("@neth4ck/wasm-367"), name: "DirectionTest" });
   // Cleanup on test cancellation too, not only normal return or assertion failure.
   t.after(() => game.stop());
   game.start();

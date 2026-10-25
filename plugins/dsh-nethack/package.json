@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Play NetHack inside DeepSeek Harness: a Host plugin runs the NetHack WASM engine on a worker thread and exposes observe/act/respond tools to the model, with the live game as a central panel opened from a top-left \"@\" entry.",
+  "dependencies": {
+    "@neth4ck/wasm-367": "2.1.2"
+  },
   "exports": {
     ".": "./lib/index.mjs",
     "./client": "./lib/client.js",
@@ -13,12 +16,6 @@
   "files": [
     "lib/*.mjs",
     "lib/client.js",
-    "engine/src/index.js",
-    "engine/build/nethack.js",
-    "engine/build/nethack.wasm",
-    "engine/LICENSE.md",
-    "engine/README.md",
-    "engine/package.json",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",

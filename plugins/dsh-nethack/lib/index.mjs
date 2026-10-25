@@ -109,20 +109,19 @@ function engineSlot() {
 }
 
 /**
- * Resolve the NetHack engine module.
+ * Resolve the NetHack engine module from the published upstream package.
  *
- * The engine ships inside this package under `engine/` rather than as an npm
- * dependency, so installing the bundle needs no network and no build script.
- * Resolution still prefers a real `@neth4ck/wasm-367` install when one exists,
- * so a future dependency declaration keeps working unchanged.
+ * The engine is NOT vendored into this plugin: `@neth4ck/wasm-367` is declared
+ * as a dependency so the installer fetches the official build, its license and
+ * its provenance instead of trusting a binary this repository happens to ship.
+ * The version is pinned in `package.json`; resolution failure is reported
+ * instead of silently loading some directory beside this file.
  */
 function resolveEngineUrl() {
   try {
-    const require = createRequire(import.meta.url);
-    return pathToFileURL(require.resolve("@neth4ck/wasm-367")).href;
-  } catch {
-    // No installed copy: use the engine shipped beside this file.
-    return new URL("../engine/src/index.js", import.meta.url).href;
+    return pathToFileURL(createRequire(import.meta.url).resolve("@neth4ck/wasm-367")).href;
+  } catch (cause) {
+    throw new Error("NetHack engine dependency @neth4ck/wasm-367 is missing; reinstall the plugin bundle", { cause });
   }
 }
 
