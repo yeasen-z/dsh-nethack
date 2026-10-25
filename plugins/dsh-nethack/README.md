@@ -1,177 +1,181 @@
 # dsh-nethack
 
-Play NetHack inside DeepSeek Harness: a Host plugin runs the upstream NetHack
-WASM engine on a worker thread and exposes it to the model as tools; the Client
-plugin renders the live game as a central panel reached from a single top-left
-entry. Hand-play and model-play drive the *same* engine, so the panel always
-shows the game the model is playing.
+Play NetHack inside DeepSeek Harness. A panel opens the real NetHack 3.6.7 WASM
+engine; you can play it yourself with an on-screen direction pad, or hand the
+character to the model and talk to it in an ordinary DSH conversation.
+
+Hand-play and model-play drive the **same** engine: the panel always shows the
+game the model is playing, and the model sees the map you see.
+
+| | |
+|---|---|
+| Package | `dsh-nethack` (a DSH bundle: Host plugin + Client plugin + agent preset) |
+| Engine | `@neth4ck/wasm-367@2.1.2` — the published upstream NetHack 3.6.7 WASM build, not vendored |
+| DSH | `>=0.2.1-rc.3 <0.3.0` (`engines.dsh`; only 0.2.1-rc.3 was actually exercised) |
+| License | MIT for this bundle; the engine keeps its NetHack General Public License |
+
+<!-- Add a screenshot of the panel here before a wide release, e.g.:
+     ![The NetHack panel: map, pack, key controls and the game conversation](docs/panel.png) -->
 
 ## Install
 
-Requires **DSH `>=0.2.1-rc.3 <0.3.0`** (declared as `engines.dsh`, so an
-incompatible Host refuses the install instead of failing at runtime). Verified
-interactively on 0.2.1-rc.3 only: a newer 0.2.x Host is allowed by the range but
-has not been exercised. Use a desktop/local Node-based DSH Host with the native
-conversation UI and session controller available. No external game server or
-WASM compiler is needed.
+Pick one of these. Each ends the same way: enable the NetHack plugin **and** its
+`nethack` agent preset, then refresh DSH and open **@ / NetHack**.
 
-### From the Git repository
+### From the plugin market (once the repository is public)
 
-```sh
-git clone https://github.com/yeasen-z/dsh-nethack-chatplay.git
-```
-
-Then ask DSH to install the bundle straight from the repository (pin the commit:
-a moving branch would make the installed copy change under you):
-
-```json
-{"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack-chatplay.git#<commit>&path:/plugins/dsh-nethack"}
-```
-
-### From a local checkout
-
-Point the plugin manager at the absolute path to `plugins/dsh-nethack`:
-
-```json
-{"action":"install_bundle","target":"/absolute/path/to/dsh-nethack-chatplay/plugins/dsh-nethack"}
-```
-
-### From npm, once published
-
-The package is prepared for the registry (`license`, `repository`, `keywords`,
-`engines.dsh`; the manifest is packed from this directory, not from the repo
-root). After `npm publish` from this directory:
-
-```json
-{"action":"install_bundle","target":"dsh-nethack@0.1.0"}
-```
-
-### From a plugin market
-
-This repository publishes a format-1 market index at
-[`market/index.json`](market/index.json). Add its URL to DSH's plugin market
-sources, or install straight from the index entry:
+Add this URL as a plugin market source in DSH, then install `dsh-nethack` from
+the discovery page:
 
 ```text
 https://raw.githubusercontent.com/yeasen-z/dsh-nethack-chatplay/main/plugins/dsh-nethack/market/index.json
 ```
 
-A market entry pins an exact commit and cannot follow a branch, so the index is
-**generated**, never edited by hand:
+> While the repository is private, market fetches fail (raw.githubusercontent
+> returns 404 without credentials). Use one of the install paths below instead.
 
-```sh
-node plugins/dsh-nethack/scripts/market-index.mjs
+### Straight from this repository
+
+No clone needed; pin the commit, because a branch would let the installed copy
+change under you:
+
+```json
+{"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack-chatplay.git#<commit>&path:/plugins/dsh-nethack"}
 ```
 
-Run it after bumping `version` in `package.json`, commit both files, then push:
-the pinned SHA must already be on the remote or installation fails at fetch
-time. `node --test plugins/dsh-nethack/tests/market-index.mjs` checks the index
-with DSH's own `parseMarketIndex` and fails if the generator would change the
-committed file.
+`<commit>` is any full SHA from this repository — the newest one on the market
+page is [the current pin](market/index.json) (`versions[0].source.commit`).
 
-The entry is `source: {"type":"git", ...}` with
-`path: "plugins/dsh-nethack"` (the bundle is a subdirectory of the repository,
-not its root), and `engines` repeats the manifest's `engines.dsh` — the market
-will not list a version that does not state its compatibility. Switching the
-entry to npm later only replaces `source` with `{"type":"npm"}` and drops `path`
-from the install target.
+### From a local checkout
 
-Approve the installation and enable the NetHack plugin and its `nethack` preset.
-Refresh the page, then open **@ / NetHack** in the sidebar. The plugin also
-registers a right-pane NetHack tab. Installation changes this DSH profile;
-do not copy or edit profile configuration files by hand.
+```sh
+git clone https://github.com/yeasen-z/dsh-nethack-chatplay.git
+```
 
-Configure a working model/provider in DSH before using chat. Manual controls
-work without an LLM. Model calls use your provider account and may incur costs.
+Then ask DSH to install the absolute path to the **plugin directory**, not the
+repository root:
+
+```json
+{"action":"install_bundle","target":"/absolute/path/to/dsh-nethack-chatplay/plugins/dsh-nethack"}
+```
+
+### From npm (after publication)
+
+```json
+{"action":"install_bundle","target":"dsh-nethack@0.1.0"}
+```
+
+The manifest carries `license`, `repository`, `keywords` and `engines.dsh`, and
+the bundling is allowed to fetch its engine dependency from the registry.
+
+### Requirements
+
+- A desktop or local Node-based DSH Host with the native conversation UI and
+  session controller (the game chat is a real DSH Session).
+- A configured model/provider for **chat**. Manual controls need no LLM.
+- No external game server and no WASM compiler: the engine is a pinned npm
+  dependency, downloaded at install time.
+
+Installation changes the current DSH profile. Do not copy or hand-edit profile
+configuration files.
 
 ## Play
 
-- Give instructions in the game's conversation, for example “探索附近房间”.
-  It uses DSH's transcript, streaming, model picker and stop control.
-- **按键操作 / Key controls**, at lower left, expands an eight-direction pad,
-  waiting, pickup, search, doors, stairs and raw answer input. Keyboard capture
-  is local to the focused control area; chat input is not intercepted.
-- **重开游戏 / New game** asks for confirmation before discarding the current game.
-- When the engine asks “What do you want to use or apply? [b or ?*]”, answer
-  `b` to select that inventory letter, `?`/`*` to inspect choices, or Escape to
-  cancel. The model uses `nethack_respond` for these prompts.
-- Switching away and returning reuses this game's Session. A new game gets a
-  new conversation. The empty conversation composer stays at the bottom.
+- Talk to the game in its conversation, e.g. "探索附近房间". It uses DSH's
+  transcript, streaming, model picker and stop control.
+- **Key controls** (lower left, always visible): eight-direction pad, wait,
+  pickup, search, open, stairs, and raw answer input. Keyboard capture is local
+  to the focused control area; the chat box is not intercepted.
+- **New game** asks for confirmation before discarding the current run.
+- Switching away and coming back reuses this game's conversation; a new game
+  gets a new one. The composer stays at the bottom of an empty conversation.
+- The model answers engine questions itself, but you can too: a direction
+  prompt takes one numpad key (`8` north, `2` south, `4` west, `6` east, and
+  `7 9 1 3` for diagonals), `<`/`>` for stairs, Escape to cancel. The vi keys
+  `h j k l` and words like `north` are **not** accepted by this engine.
 
-## Isolation
+## What the model can do
 
-Only these tools are exposed in the game model's assembled request:
+Only three tools are exposed in the game model's assembled request:
 
 | Tool | Purpose |
 |---|---|
-| `nethack_observe` | Read the visible map, status, inventory, messages and pending prompt. |
-| `nethack_act` | Move, wait, pick up, search, open, use stairs, explore or send raw keys. Repeated actions stop on relevant changes. |
-| `nethack_respond` | Answer an item-selection, direction, yes/no, text, menu or position prompt. |
+| `nethack_observe` | Map (with `?` for never-seen cells), status, pack, recent messages, the pending prompt, and the keys that prompt accepts. |
+| `nethack_act` | Move, wait, pick up, search, open, stairs, explore, or raw keys. Repeats stop on a question, damage, an arrival, or a step that did not land. |
+| `nethack_respond` | Answer item, direction, yes/no, text, menu or position prompts. |
 
-They are registered in the game Agent scope, never globally. Inherited tools
-are masked; model-request assembly filters same-scope contributions such as
-Agent Teams tools, and a scoped execution guard denies all non-game tools.
-The restart definition is not exposed to the game model: the confirmed UI
-button calls the shared restart implementation. Other sessions keep their own
-tools and Team functionality.
+They are registered in the game Agent scope, never globally. Inherited tools are
+masked, model-request assembly filters same-scope contributions such as Agent
+Teams tools, and a scoped execution guard denies every non-game tool. The
+restart definition is not exposed to the model: only the confirmed button calls
+it. Other sessions keep their own tools and Team functionality.
 
-## Update / disable
+## Update, disable, remove
 
-Run `git pull --ff-only` in the clone and ask DSH's plugin manager to reinstall
-the same absolute bundle directory. Do not install the repository root as an
-npm package. A plugin-only reload retains the live engine, but this is not a
-save-game facility. Disabling the plugin removes its UI and bindings; the live
-worker remains until the Host exits so a temporary reload does not reset it.
+- **Update:** in a local clone run `git pull --ff-only`, then ask the plugin
+  manager to reinstall the same directory. Market installs carry an exact commit,
+  so "update" means installing a newer version from the market.
+- **Disable:** turning the plugin off removes its UI and bindings. The live
+  worker survives until the Host exits, so a reload does not reset the run.
+- **New game** is the only way to discard a run; disable is not a reset.
 
-## Limits and troubleshooting
+## Limits
 
-- One live game per Host process, shared by panel instances/users connected to it.
-- The engine runs in memory. Quitting the Host ends the game; persisted DSH chat
-  history is not persisted NetHack progress.
-- Game chat uses an ordinary, non-archived Session; it may appear in session lists.
-- A hidden panel stops polling. Reopening it refreshes the game and reopens the
-  same conversation identity.
-- A chat startup error includes its actual binding detail. It does not imply the
-  engine needs a restart. Check the model configuration and report the complete
-  error before using the destructive New game button.
-- **Only 0.2.1-rc.3 is verified.** `engines.dsh` admits the rest of 0.2.x, so a
-  newer 0.2.x Host installs the bundle without having been tested; widen or
-  narrow the range deliberately when you test another version.
-- **Chat needs a working model/provider** configured in the target DSH. Without
-  one the panel and key controls still work, but the conversation cannot answer.
-- **One live game per Host process**, and the game lives in memory: quitting DSH
-  ends the run. Persisted chat history is not persisted NetHack progress.
+- **One live game per Host process**, shared by every panel connected to it.
+- **The game lives in memory.** Quitting the Host ends it. Persisted chat history
+  is *not* a saved NetHack game.
+- **Only DSH 0.2.1-rc.3 was exercised.** `engines.dsh` admits the rest of 0.2.x;
+  a newer Host installs the bundle without having been tested.
+- **Chat needs a model.** Without a working provider the panel and pad still work.
+- The game conversation is an ordinary, non-archived Session, so it can appear in
+  session lists.
+- A hidden panel stops polling; reopening it refreshes the game and reopens the
+  same conversation.
+- A chat startup error carries its real binding detail. It does not mean the
+  engine needs restarting: check the model configuration before pressing
+  **New game**.
+- Cross-machine installation has not been tested. Source tests and installed
+  registration checks do not replace a test on your DSH version.
 
-- Plugin source tests and installed registration checks do not replace testing
-  on the target DSH version. Cross-machine installation has not yet been tested.
-
-## Development and packaging
-
-From the repository root:
+## Development
 
 ```sh
-node --test plugins/dsh-nethack/tests/*.mjs
-npm pack --dry-run --json --prefix plugins/dsh-nethack
+node --test plugins/dsh-nethack/tests/*.mjs        # 57 tests, incl. real-engine ones
+node plugins/dsh-nethack/scripts/market-index.mjs  # regenerate market/index.json
+npm pack --dry-run --prefix plugins/dsh-nethack    # what a registry install receives
 ```
 
-Or run `npm pack --dry-run --json` from this plugin directory. The package file
-allowlist includes the Host/Client modules, locales, icon, bundle patch and WASM
-engine. No install/build scripts or external runtime dependencies are required.
-The standalone engine test starts its own worker, not the Host's current game;
-its randomly generated starting character can occasionally make the direction
-fixture fail (“no hands”).
+The release workflow is: bump `version` in `package.json`, commit, run the
+generator, commit the index, push. The market pins an exact commit, so the SHA
+must be on the remote before the index that names it — a market install of an
+unknown commit fails at fetch time. `tests/market-index.mjs` validates the index
+with DSH's own `parseMarketIndex` and fails if the generator would change the
+committed file.
 
-## Source layout and licenses
+The engine tests start their own worker, never the Host's live game. A randomly
+generated starting character is occasionally itemless; those tests retry the
+start rather than assert on the dice.
 
-- `lib/index.mjs`: Host routes and model tool definitions.
-- `lib/session.mjs`: game Session binding, model tool filtering and execution guard.
-- `lib/client.js`: panel, session reuse, native conversation occurrence and controls.
-- `lib/game.mjs`, `lib/engine-worker.mjs`: engine state and worker bridge.
+## Source layout
 
-Engine: the NetHack 3.6.7 WASM build is **not vendored here**. `package.json`
-pins the published upstream package `@neth4ck/wasm-367@2.1.2`
-([neth4ck-monorepo](https://github.com/apowers313/neth4ck-monorepo), NetHack
-General Public License), so installation fetches the official artifact, its
-license and its npm provenance. Verify it with `npm view @neth4ck/wasm-367`
-before installing, and read its `LICENSE.md` before redistributing anything.
-Project license: [repository license](<../../LICENSE>).
+```
+lib/index.mjs          Host routes, model tools, prompt/answer presentation
+lib/session.mjs        game Session binding, tool filtering, execution guard
+lib/game.mjs           engine state: prompts, inventory, turn accounting
+lib/engine-worker.mjs  worker bridge to the WASM engine
+lib/navigate.mjs       grid, pathfinding and exploration
+lib/client.js          the panel: map, pack, pad, native conversation slot
+cordis.patch.yml       bundle patch and the `nethack` agent preset (persona)
+market/index.json      generated format-1 plugin market index
+locale/                panel strings (en, zh)
+tests/                 node:test suites, including real-engine ones
+```
+
+## Licenses
+
+This bundle is MIT (repository `LICENSE`). The NetHack 3.6.7 WASM engine is the
+published package `@neth4ck/wasm-367@2.1.2`
+([neth4ck-monorepo](https://github.com/apowers313/neth4ck-monorepo)), distributed
+under the NetHack General Public License; installation fetches that artifact, its
+license and its npm provenance. Read its `LICENSE.md` before redistributing
+anything derived from it, and verify the pin with `npm view @neth4ck/wasm-367`.

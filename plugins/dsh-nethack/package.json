@@ -36,7 +36,8 @@
     "icon.svg",
     "README.md",
     "market/*.json",
-    "scripts/market-index.mjs"
+    "scripts/market-index.mjs",
+    "CHANGELOG.md"
   ],
   "dsh": {
     "bundle": {
@@ -47,5 +48,9 @@
       "immediately": true,
       "inject": []
     }
+  },
+  "scripts": {
+    "market-index": "node scripts/market-index.mjs",
+    "test": "node --test tests/*.mjs"
   }
 }

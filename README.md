@@ -1,12 +1,21 @@
 # NetHack-Chat
 
-> **Play NetHack with natural language.**
+> **Play NetHack with natural language — inside DeepSeek Harness.**
+
+> **Status: private repository.** Market and raw-file URLs for this project
+> return 404 without credentials, so only people with access can install it
+> until the repository is published. Everything below assumes that access.
 
 ## Install the DeepSeek Harness plugin
 
-The playable DSH plugin includes the NetHack WASM engine, map, inventory, manual
-controls, and a separate native game conversation. No engine compilation or npm
-publication is needed.
+The playable DSH bundle is [`plugins/dsh-nethack`](<plugins/dsh-nethack/README.md>):
+the real NetHack 3.6.7 WASM engine, map, pack, always-visible key controls, and a
+separate native game conversation. No engine compilation and no npm publication
+are needed.
+
+**Requirements:** DSH `>=0.2.1-rc.3 <0.3.0` (declared as `engines.dsh`; only
+0.2.1-rc.3 was actually exercised) and a configured model/provider if you want
+the model to play — the manual controls work without one.
 
 ```sh
 git clone https://github.com/yeasen-z/dsh-nethack-chatplay.git
@@ -17,19 +26,18 @@ In your **DeepSeek Harness** session, ask:
 
 > Install the local bundle at `/absolute/path/to/dsh-nethack-chatplay/plugins/dsh-nethack` using the plugin manager. Enable both the NetHack plugin and its nethack agent preset.
 
-The bundle can also be installed straight from this repository, pinned to a
-commit, without cloning:
+The bundle can also be installed straight from this repository, without cloning,
+pinned to a commit:
 
 ```json
 {"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack-chatplay.git#<commit>&path:/plugins/dsh-nethack"}
 ```
 
-Approve the installation. Refresh DSH, then open the **@ / NetHack** panel.
-Configure a working model in DSH to use game chat; manual controls do not require
-an LLM. The plugin declares `engines.dsh` (`>=0.2.1-rc.3 <0.3.0`) so an
-incompatible Host refuses it, but only `0.2.1-rc.3` was actually exercised. The
-complete plugin guide, including the npm and plugin-market paths, is
-[here](<plugins/dsh-nethack/README.md>).
+The other install paths — plugin market, npm after publication — are in the
+[bundle guide](<plugins/dsh-nethack/README.md>).
+
+Approve the installation and enable **both** the NetHack plugin and its
+`nethack` preset. Refresh DSH, then open the **@ / NetHack** panel.
 
 **Update:** run `git pull --ff-only`, then ask DSH to reinstall the same local
 bundle. Do not hand-edit your DSH profile or install the whole repository as an
@@ -38,7 +46,8 @@ npm package: the installable bundle is the plugin subdirectory.
 **Limits:** one live game per Host process. Switching panels preserves the same
 game conversation. Plugin reload keeps the live engine, but quitting the Host
 ends the in-memory game; durable chat history is not a saved NetHack game.
-Model calls use your configured provider and may incur charges.
+Model calls use your configured provider and may incur charges. The game chat
+needs a model; the panel and key controls do not.
 
 ---
 
@@ -49,6 +58,13 @@ The core deliverable is the **NetHack-Chat Middleware**: a reusable, model-indep
 This repository implements the design described in the developer handoff ("Middleware-first architecture", 2026-09-30). All schemas here are **our proposed contracts**, not existing NetHack exports.
 
 ---
+
+## Design of the middleware
+
+The rest of this file describes the original middleware design that the plugin
+implements on top of DSH: contracts, invariants, and the evaluation harness in
+`packages/`, `apps/` and `eval/`. Everything below is about that library layer,
+not about installing the game — use the bundle guide for that.
 
 ## 1. Architecture
 
