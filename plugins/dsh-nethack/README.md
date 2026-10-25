@@ -46,8 +46,35 @@ root). After `npm publish` from this directory:
 {"action":"install_bundle","target":"dsh-nethack@0.1.0"}
 ```
 
-For a plugin market, the entry for a version is `source: {"type":"npm"}` plus
-`engines: {"dsh":">=0.2.1-rc.3 <0.3.0"}`, the same range the manifest declares.
+### From a plugin market
+
+This repository publishes a format-1 market index at
+[`market/index.json`](market/index.json). Add its URL to DSH's plugin market
+sources, or install straight from the index entry:
+
+```text
+https://raw.githubusercontent.com/yeasen-z/dsh-nethack-chatplay/main/plugins/dsh-nethack/market/index.json
+```
+
+A market entry pins an exact commit and cannot follow a branch, so the index is
+**generated**, never edited by hand:
+
+```sh
+node plugins/dsh-nethack/scripts/market-index.mjs
+```
+
+Run it after bumping `version` in `package.json`, commit both files, then push:
+the pinned SHA must already be on the remote or installation fails at fetch
+time. `node --test plugins/dsh-nethack/tests/market-index.mjs` checks the index
+with DSH's own `parseMarketIndex` and fails if the generator would change the
+committed file.
+
+The entry is `source: {"type":"git", ...}` with
+`path: "plugins/dsh-nethack"` (the bundle is a subdirectory of the repository,
+not its root), and `engines` repeats the manifest's `engines.dsh` — the market
+will not list a version that does not state its compatibility. Switching the
+entry to npm later only replaces `source` with `{"type":"npm"}` and drops `path`
+from the install target.
 
 Approve the installation and enable the NetHack plugin and its `nethack` preset.
 Refresh the page, then open **@ / NetHack** in the sidebar. The plugin also

@@ -1,0 +1,96 @@
+{
+  "format": 1,
+  "title": {
+    "en": "Yeasen's DSH plugins",
+    "zh": "Yeasen 的 DSH 插件"
+  },
+  "description": {
+    "en": "Bundles published from github.com/yeasen-z/dsh-nethack-chatplay.",
+    "zh": "来自 github.com/yeasen-z/dsh-nethack-chatplay 的组合包。"
+  },
+  "metadata": {
+    "categories": {
+      "games": {
+        "title": {
+          "en": "Games",
+          "zh": "游戏"
+        }
+      }
+    },
+    "labels": {
+      "nethack": {
+        "title": {
+          "en": "NetHack",
+          "zh": "NetHack"
+        }
+      },
+      "agent-play": {
+        "title": {
+          "en": "Agent plays",
+          "zh": "由智能体操作"
+        }
+      }
+    },
+    "sortKeys": {
+      "added": {
+        "title": {
+          "en": "Added",
+          "zh": "收录时间"
+        },
+        "order": "desc"
+      }
+    }
+  },
+  "plugins": [
+    {
+      "name": "dsh-nethack",
+      "title": {
+        "en": "NetHack",
+        "zh": "NetHack 地牢"
+      },
+      "description": {
+        "en": "Play NetHack inside DSH: the real NetHack 3.6.7 WASM engine in a panel, driven by you with the arrow pad or by the model through three isolated game tools.",
+        "zh": "在 DSH 里玩真正的 NetHack：面板里是 NetHack 3.6.7 WASM 引擎，你可以用方向键盘玩，也可以让模型通过三个隔离的游戏工具替你玩。"
+      },
+      "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJOZXRIYWNrIj4KICA8cmVjdCB4PSI0IiB5PSI0IiB3aWR0aD0iNTYiIGhlaWdodD0iNTYiIHJ4PSIxMCIgZmlsbD0iIzFkMWYyMSIvPgogIDxnIHN0cm9rZT0iIzhhOGY5OCIgc3Ryb2tlLXdpZHRoPSIyLjUiIHN0cm9rZS1saW5lY2FwPSJzcXVhcmUiIG9wYWNpdHk9IjAuODUiPgogICAgPHBhdGggZD0iTTE0IDIyaDM2TTE0IDQyaDM2Ii8+CiAgICA8cGF0aCBkPSJNMjIgMTR2MzZNNDIgMTR2MzYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMTMiIGZpbGw9IiMyZjZmYmYiLz4KICA8dGV4dCB4PSIzMiIgeT0iNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJ1aS1tb25vc3BhY2UsIFNGTW9uby1SZWd1bGFyLCBNZW5sbywgbW9ub3NwYWNlIgogICAgICAgIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiNmZmZmZmYiPkA8L3RleHQ+Cjwvc3ZnPg==",
+      "author": "yeasen-z",
+      "homepage": "https://github.com/yeasen-z/dsh-nethack-chatplay",
+      "repository": {
+        "url": "https://github.com/yeasen-z/dsh-nethack-chatplay",
+        "directory": "plugins/dsh-nethack"
+      },
+      "metadata": {
+        "category": "games",
+        "keywords": [
+          "nethack",
+          "roguelike",
+          "game",
+          "wasm",
+          "agent"
+        ],
+        "labels": [
+          "nethack",
+          "agent-play"
+        ],
+        "sortKeys": {
+          "added": 1792937210
+        }
+      },
+      "versions": [
+        {
+          "version": "0.1.0",
+          "publishTimestamp": 1792937210,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/yeasen-z/dsh-nethack-chatplay",
+            "commit": "c65dfa3a2b9b34fc93c6eac11f4b138967f04e34",
+            "path": "plugins/dsh-nethack"
+          },
+          "engines": {
+            "dsh": ">=0.2.1-rc.3 <0.3.0"
+          }
+        }
+      ]
+    }
+  ]
+}
