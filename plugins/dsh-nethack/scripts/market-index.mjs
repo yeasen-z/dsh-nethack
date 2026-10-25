@@ -39,7 +39,7 @@ const branchBehind = (() => {
   }
 })();
 
-const repositoryUrl = "https://github.com/yeasen-z/dsh-nethack-chatplay";
+const repositoryUrl = "https://github.com/yeasen-z/dsh-nethack";
 const engines = manifest.engines?.dsh;
 if (!engines) throw new Error("package.json must declare engines.dsh: the market cannot state compatibility without it");
 

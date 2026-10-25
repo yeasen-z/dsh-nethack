@@ -19,17 +19,14 @@ game the model is playing, and the model sees the map you see.
 Pick one of these. Each ends the same way: enable the NetHack plugin **and** its
 `nethack` agent preset, then refresh DSH and open **@ / NetHack**.
 
-### From the plugin market (once the repository is public)
+### From the plugin market
 
 Add this URL as a plugin market source in DSH, then install `dsh-nethack` from
 the discovery page:
 
 ```text
-https://raw.githubusercontent.com/yeasen-z/dsh-nethack-chatplay/main/plugins/dsh-nethack/market/index.json
+https://raw.githubusercontent.com/yeasen-z/dsh-nethack/main/plugins/dsh-nethack/market/index.json
 ```
-
-> While the repository is private, market fetches fail (raw.githubusercontent
-> returns 404 without credentials). Use one of the install paths below instead.
 
 ### Straight from this repository
 
@@ -37,7 +34,7 @@ No clone needed; pin the commit, because a branch would let the installed copy
 change under you:
 
 ```json
-{"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack-chatplay.git#<commit>&path:/plugins/dsh-nethack"}
+{"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack.git#<commit>&path:/plugins/dsh-nethack"}
 ```
 
 `<commit>` is any full SHA from this repository — the newest one on the market
@@ -46,14 +43,14 @@ page is [the current pin](market/index.json) (`versions[0].source.commit`).
 ### From a local checkout
 
 ```sh
-git clone https://github.com/yeasen-z/dsh-nethack-chatplay.git
+git clone https://github.com/yeasen-z/dsh-nethack.git
 ```
 
 Then ask DSH to install the absolute path to the **plugin directory**, not the
 repository root:
 
 ```json
-{"action":"install_bundle","target":"/absolute/path/to/dsh-nethack-chatplay/plugins/dsh-nethack"}
+{"action":"install_bundle","target":"/absolute/path/to/dsh-nethack/plugins/dsh-nethack"}
 ```
 
 ### From npm (after publication)

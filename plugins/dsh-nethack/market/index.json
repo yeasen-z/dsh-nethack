@@ -5,8 +5,8 @@
     "zh": "Yeasen 的 DSH 插件"
   },
   "description": {
-    "en": "Bundles published from github.com/yeasen-z/dsh-nethack-chatplay.",
-    "zh": "来自 github.com/yeasen-z/dsh-nethack-chatplay 的组合包。"
+    "en": "Bundles published from github.com/yeasen-z/dsh-nethack.",
+    "zh": "来自 github.com/yeasen-z/dsh-nethack 的组合包。"
   },
   "metadata": {
     "categories": {
@@ -54,9 +54,9 @@
       },
       "icon": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJOZXRIYWNrIj4KICA8cmVjdCB4PSI0IiB5PSI0IiB3aWR0aD0iNTYiIGhlaWdodD0iNTYiIHJ4PSIxMCIgZmlsbD0iIzFkMWYyMSIvPgogIDxnIHN0cm9rZT0iIzhhOGY5OCIgc3Ryb2tlLXdpZHRoPSIyLjUiIHN0cm9rZS1saW5lY2FwPSJzcXVhcmUiIG9wYWNpdHk9IjAuODUiPgogICAgPHBhdGggZD0iTTE0IDIyaDM2TTE0IDQyaDM2Ii8+CiAgICA8cGF0aCBkPSJNMjIgMTR2MzZNNDIgMTR2MzYiLz4KICA8L2c+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMTMiIGZpbGw9IiMyZjZmYmYiLz4KICA8dGV4dCB4PSIzMiIgeT0iNDAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJ1aS1tb25vc3BhY2UsIFNGTW9uby1SZWd1bGFyLCBNZW5sbywgbW9ub3NwYWNlIgogICAgICAgIGZvbnQtc2l6ZT0iMjAiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiNmZmZmZmYiPkA8L3RleHQ+Cjwvc3ZnPg==",
       "author": "yeasen-z",
-      "homepage": "https://github.com/yeasen-z/dsh-nethack-chatplay",
+      "homepage": "https://github.com/yeasen-z/dsh-nethack",
       "repository": {
-        "url": "https://github.com/yeasen-z/dsh-nethack-chatplay",
+        "url": "https://github.com/yeasen-z/dsh-nethack",
         "directory": "plugins/dsh-nethack"
       },
       "metadata": {
@@ -82,8 +82,8 @@
           "publishTimestamp": 1792939762,
           "source": {
             "type": "git",
-            "url": "https://github.com/yeasen-z/dsh-nethack-chatplay",
-            "commit": "9393606121025003fd6a659dcf51b242e45b91f4",
+            "url": "https://github.com/yeasen-z/dsh-nethack",
+            "commit": "4336d102ecd1d41faaccd7406f7677a0f40d3545",
             "path": "plugins/dsh-nethack"
           },
           "engines": {

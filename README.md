@@ -2,9 +2,11 @@
 
 > **Play NetHack with natural language — inside DeepSeek Harness.**
 
-> **Status: private repository.** Market and raw-file URLs for this project
-> return 404 without credentials, so only people with access can install it
-> until the repository is published. Everything below assumes that access.
+> **Public.** Install it from DSH's plugin market, or straight from git — the
+> bundle is [`plugins/dsh-nethack`](<plugins/dsh-nethack/README.md>), not the
+> repository root, which also holds the middleware library described at the end.
+> The repository was renamed from `dsh-nethack-chatplay`; the old URLs still
+> redirect, but use `yeasen-z/dsh-nethack`.
 
 ## Install the DeepSeek Harness plugin
 
@@ -18,19 +20,19 @@ are needed.
 the model to play — the manual controls work without one.
 
 ```sh
-git clone https://github.com/yeasen-z/dsh-nethack-chatplay.git
-cd dsh-nethack-chatplay
+git clone https://github.com/yeasen-z/dsh-nethack.git
+cd dsh-nethack
 ```
 
 In your **DeepSeek Harness** session, ask:
 
-> Install the local bundle at `/absolute/path/to/dsh-nethack-chatplay/plugins/dsh-nethack` using the plugin manager. Enable both the NetHack plugin and its nethack agent preset.
+> Install the local bundle at `/absolute/path/to/dsh-nethack/plugins/dsh-nethack` using the plugin manager. Enable both the NetHack plugin and its nethack agent preset.
 
 The bundle can also be installed straight from this repository, without cloning,
 pinned to a commit:
 
 ```json
-{"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack-chatplay.git#<commit>&path:/plugins/dsh-nethack"}
+{"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack.git#<commit>&path:/plugins/dsh-nethack"}
 ```
 
 The other install paths — plugin market, npm after publication — are in the

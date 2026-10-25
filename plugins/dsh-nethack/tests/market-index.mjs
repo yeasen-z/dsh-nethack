@@ -62,7 +62,7 @@ test("a git version installs the bundle subdirectory, not the repository root", 
   for (const version of entry.versions) {
     if (version.source?.type !== "git") continue;
     assert.equal(version.source.path, "plugins/dsh-nethack");
-    assert.ok(version.source.url.endsWith("/dsh-nethack-chatplay"), "url is the repository, canonical and without .git");
+    assert.ok(version.source.url.endsWith("/yeasen-z/dsh-nethack"), "url is the repository, canonical and without .git");
     assert.ok(!version.source.url.endsWith(".git"), "the validator requires the canonical repository URL");
   }
 });
@@ -85,13 +85,13 @@ test("DSH's own parser accepts the index and derives the documented install targ
     return;
   }
   const { parseMarketIndex, marketInstallTarget } = validator;
-  const parsed = parseMarketIndex(index, "https://raw.githubusercontent.com/yeasen-z/dsh-nethack-chatplay/main/plugins/dsh-nethack/market/index.json");
+  const parsed = parseMarketIndex(index, "https://raw.githubusercontent.com/yeasen-z/dsh-nethack/main/plugins/dsh-nethack/market/index.json");
   const plugin = parsed.plugins.find((candidate) => candidate.name === manifest.name);
   const version = plugin.versions.find((candidate) => candidate.version === manifest.version);
   const { spec } = marketInstallTarget(plugin.name, version);
   assert.equal(
     spec,
-    `git+https://github.com/yeasen-z/dsh-nethack-chatplay.git#${version.source.commit}&path:/plugins/dsh-nethack`,
+    `git+https://github.com/yeasen-z/dsh-nethack.git#${version.source.commit}&path:/plugins/dsh-nethack`,
   );
 });
 

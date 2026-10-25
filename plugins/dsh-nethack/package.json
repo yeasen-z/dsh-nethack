@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yeasen-z/dsh-nethack-chatplay.git",
+    "url": "git+https://github.com/yeasen-z/dsh-nethack.git",
     "directory": "plugins/dsh-nethack"
   },
   "keywords": [
