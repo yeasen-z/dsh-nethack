@@ -1,12 +1,11 @@
-# NetHack-Chat
+# dsh-nethack
 
 > **Play NetHack with natural language — inside DeepSeek Harness.**
 
 > **Public.** Install it from DSH's plugin market, or straight from git — the
 > bundle is [`plugins/dsh-nethack`](<plugins/dsh-nethack/README.md>), not the
 > repository root, which also holds the middleware library described at the end.
-> The repository was renamed from `dsh-nethack-chatplay`; the old URLs still
-> redirect, but use `yeasen-z/dsh-nethack`.
+> Repository: [yeasen-z/dsh-nethack](https://github.com/yeasen-z/dsh-nethack).
 
 ## Install the DeepSeek Harness plugin
 
@@ -53,9 +52,9 @@ needs a model; the panel and key controls do not.
 
 ---
 
-NetHack-Chat is a **middleware and interaction layer that exposes NetHack as a language-controllable environment** for humans and LLM agents. The human and the AI operate *the same character in the same game session*: language can query, propose, execute, or delegate; direct controls always remain available through the same execution authority.
+dsh-nethack is a **middleware and interaction layer that exposes NetHack as a language-controllable environment** for humans and LLM agents. The human and the AI operate *the same character in the same game session*: language can query, propose, execute, or delegate; direct controls always remain available through the same execution authority.
 
-The core deliverable is the **NetHack-Chat Middleware**: a reusable, model-independent interface for observing the game (`observe()`), executing typed actions (`step()`), running bounded skills (`executeSkill()`), and managing human/AI control ownership (`stop()` / `takeOver()`). **NetHack-Chat Web** is its first client; a future evaluation runner uses the same contracts.
+The core deliverable is the **dsh-nethack Middleware**: a reusable, model-independent interface for observing the game (`observe()`), executing typed actions (`step()`), running bounded skills (`executeSkill()`), and managing human/AI control ownership (`stop()` / `takeOver()`). **dsh-nethack Web** is its first client; a future evaluation runner uses the same contracts.
 
 This repository implements the design described in the developer handoff ("Middleware-first architecture", 2026-09-30). All schemas here are **our proposed contracts**, not existing NetHack exports.
 
