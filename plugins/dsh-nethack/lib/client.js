@@ -168,10 +168,15 @@ window.__ModuleLoader__.load({
   border-top: 1px solid var(--dsw-alias-border-l1);
   background: var(--dsw-alias-bg-layer-1); }
 .nhc-side { flex: 0 0 clamp(150px, 22%, 230px); min-height: 0; display: flex; flex-direction: column; gap: 8px; }
-.nhc-side > .nhc-pack { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.nhc-side > .nhc-pack { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .nhc-controls { margin-top: auto; flex: none; display: flex; flex-direction: column; gap: 6px; }
 .nhc-control-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
-.nhc-manual { max-height: 240px; overflow: auto; padding: 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; }
+/* The game needs at least one full open viewport, so the dock never scrolls.
+   With the manual always open the map column cannot supply that height, so the
+   width breakpoints below must not cap the dock; the panel scrolls instead. */
+/* The manual is permanent, so it is sized to stay fully visible in the dock
+   instead of scrolling: the command entry must never be pushed out of reach. */
+.nhc-manual { flex: 0 0 auto; padding: 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; }
 .nhc-manual:focus { outline: 2px solid var(--dsw-alias-border-l2); }
 .nhc-keygrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 6px 0; }
 .nhc-keyreply { display: flex; gap: 4px; margin-top: 6px; }
@@ -258,7 +263,7 @@ window.__ModuleLoader__.load({
   border-bottom: 1px solid var(--dsw-alias-border-l1); }
 .nhc-pack-count { margin-left: auto; font-family: ui-monospace, monospace;
   font-weight: 400; font-size: 10px; opacity: .75; letter-spacing: 0; }
-.nhc-pack-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px 11px 10px; }
+.nhc-pack-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 8px 11px 10px; }
 .nhc-pack-body .nhc-inv-item em { display: inline-block; width: 14px; flex: none;
   font-family: ui-monospace, monospace; font-style: normal;
   color: var(--dsw-alias-brand-primary); opacity: .9; }
@@ -288,8 +293,10 @@ window.__ModuleLoader__.load({
   max-height: 190px; overflow: auto; }
 .nhc-msgs li { font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
 .nhc-msgs li:last-child { color: var(--dsw-alias-brand-primary); }
-.nhc-inv { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px;
-  max-height: 220px; overflow: auto; }
+/* Only the pack body scrolls (see .nhc-pack-body). The list inside it must never
+   be its own scroll container: two nested scrollers showed two scrollbars for a
+   single pack. */
+.nhc-inv { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
 .nhc-inv-item { font-size: 11px; line-height: 1.35; overflow-wrap: anywhere;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .nhc-inv-head { font-size: 10px; font-weight: 600; margin-top: 4px;
@@ -722,7 +729,6 @@ window.__ModuleLoader__.load({
      * tools and this session cannot reach the workspace.
      */
     function GameControls({ t, state, busy, send }) {
-      const [expanded, setExpanded] = React.useState(false);
       const [confirming, setConfirming] = React.useState(false);
       const [reply, setReply] = React.useState("");
       const command = state?.waiting_for === "command";
@@ -735,7 +741,7 @@ window.__ModuleLoader__.load({
           h("div", { className: "nhc-control-buttons" },
             button(t("confirmRestart"), async () => { await send({ action: "restart" }); setConfirming(false); }),
             button(t("cancel"), () => setConfirming(false)))) : null,
-        expanded ? h("div", {
+        h("div", {
           className: "nhc-manual", tabIndex: 0, role: "group", "aria-label": t("keys"),
           onKeyDown: event => {
             if (busy || /^(INPUT|TEXTAREA|BUTTON)$/.test(event.target?.tagName) || event.target?.isContentEditable
@@ -758,15 +764,11 @@ window.__ModuleLoader__.load({
           h("form", { className: "nhc-keyreply", onSubmit: event => { event.preventDefault(); if (!busy && reply) { input(reply); setReply(""); } } },
             h("input", { value: reply, "aria-label": t("keyReply"), placeholder: t("keyReply"), disabled: busy,
               onChange: event => setReply(event.target.value) }),
-            h("button", { type: "submit", className: "nhc-btn", disabled: busy || !reply }, t("sendKey"))),
-        ) : null,
+            h("button", { type: "submit", className: "nhc-btn", disabled: busy || !reply }, t("sendKey")))),
         h("div", { className: "nhc-control-buttons" },
-          button(t("restart"), () => setConfirming(value => !value)),
-          h("button", { type: "button", className: "nhc-btn", "aria-expanded": expanded,
-            onClick: () => setExpanded(value => !value) }, t("keys"))),
+          button(t("restart"), () => setConfirming(value => !value))),
       );
     }
-
     function NetHackPanel(props) {
       const t = props.t;
       useLocaleRevision(props.subscribeLocale);
@@ -943,7 +945,8 @@ window.__ModuleLoader__.load({
      * headings stay, the selection letter is pulled out into its own column so the
      * item names line up, and the held/worn note is kept because it changes what an
      * action does. Scrolls internally: a long pack must never push the composer
-     * out of the panel.
+     * out of the panel. Exactly ONE element scrolls here (`.nhc-pack-body`); the
+     * column wrapper clips, so the pack never shows two nested scrollbars.
      */
     function PackPanel(props) {
       const { state, t } = props;

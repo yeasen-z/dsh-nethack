@@ -201,6 +201,26 @@ export class NetHackGame {
   }
 
   /**
+   * Show the pack without changing the game.
+   *
+   * NetHack's pack is the in-game inventory screen: the engine only re-renders it
+   * when something puts it on screen, which is why the panel's pack used to freeze
+   * until someone pressed `i`. Sending `i` re-renders it and costs no turn.
+   *
+   * The display arrives as a PICK_NONE menu, which this class treats as the pack
+   * itself and never as a prompt (see `#applyEvent` "menu"), so it is only sent
+   * while the engine is parked at the command prompt.
+   *
+   * @returns true when `i` was sent.
+   */
+  refreshInventory() {
+    if (this.input.kind !== "command" || this.ended || this.#inPositionPrompt()) return false;
+    // The command prompt's request stays intact: the engine needs it to ask again.
+    // Taking it here made the engine unable to ask, so the very next key was lost.
+    return this.sendKeys("i", "refresh").accepted === true;
+  }
+
+  /**
    * Messages the caller has not been shown yet, advancing the cursor.
    *
    * Tools report only what is new, so the birth message is not repeated in every

@@ -216,6 +216,17 @@ async function settle(gameInstance, timeoutMs = 4000) {
 const MAX_REPEAT = 50;
 
 /**
+ * Keystrokes that can move items between the pack and the world.
+ *
+ * NetHack command letters for pick up (`g`), take off (`T`), eat (`e`), drink
+ * (`q`), read (`r`), zap (`z`), wear (`W`), wield (`w`), apply (`a`), put on
+ * (`P`), remove (`R`), drop (`d`), throw (`t`), pay (`p`), tip (`t`) and the
+ * inventory/add-to-inventory pair (`i`, which only displays). Anything else —
+ * movement, searching, opening — cannot change the pack.
+ */
+const ITEM_COMMAND_KEYS = new Set("gTqerzwWaPRdtpio");
+
+/**
  * Turn a caller's `count` into an `explore` step budget.
  *
  * Both the tool and the panel route use this, so "how many steps may one explore
@@ -237,6 +248,10 @@ function exploreBudget(count) {
  * the boot message alone burned one. Paging here keeps the text (it still rides
  * back in the tool result) and reserves rounds for actual decisions. `yn`, `line`
  * and `menu` are deliberately NOT auto-answered: those carry a real choice.
+ *
+ * The inventory screen (`i`) is a PICK_NONE menu, i.e. a *display*, not a choice.
+ * It is taken back by the engine wrapper instead of answered, so a queued display
+ * can never be handed to a later prompt as its answer.
  *
  * Bounded, because a wedged engine must not page forever, and it returns as soon
  * as anything other than `more` comes up.
@@ -295,6 +310,90 @@ function hpOf(observation) {
  * every few steps, since the pet follows the player everywhere. The engine marks
  * it with `MG_PET` on the tile, which is the only reliable way to tell it apart.
  */
+/**
+ * What is standing in one direction from the player.
+ *
+ * A move into an occupied tile is an ATTACK, not a step: the turn passes and the
+ * character stays put. The model could only see "the way is blocked", which reads
+ * as a wall — so it never learned the useful move here, swapping places with the
+ * follower by pressing the movement key at it. Naming what is there (and whether
+ * it is the pet) gives it the information the map's single glyph does not.
+ *
+ * @returns a description, or null when the tile is empty or unknown.
+ */
+function occupantAt(observation, direction) {
+  const player = observation?.player;
+  const step = DIRECTIONS[direction];
+  if (!player || !step) return null;
+  const dx = Number(step) % 3 === 1 ? -1 : Number(step) % 3 === 2 ? 0 : 1;
+  const dy = Number(step) <= 3 ? 1 : Number(step) <= 6 ? 0 : -1;
+  const tile = (observation.tiles ?? []).find((t) => t.x === player.x + dx && t.y === player.y + dy);
+  if (!tile?.text || tile.text === " ") return null;
+  const creature = /^[A-Za-z@&;:'"]$/.test(tile.text);
+  const pet = tile.pet
+    ? "your pet/follower"
+    : creature ? "a creature" : "something";
+  return { glyph: tile.text, pet: !!tile.pet, label: pet };
+}
+
+/**
+ * What to do about the tile a move failed to enter.
+ *
+ * Kept as one sentence so every caller (a repeated walk, a single step) tells the
+ * model the same thing: this is not a wall, and the engine has a move for it.
+ */
+/**
+ * The eight cells around the player, named the way the tools name directions.
+ *
+ * Kept next to `occupantAt` so "what is beside me" and "what did I walk into" use
+ * one table of offsets rather than two that can drift apart.
+ */
+const COMPASS = [
+  ["northwest", -1, -1], ["north", 0, -1], ["northeast", 1, -1],
+  ["west", -1, 0], ["east", 1, 0],
+  ["southwest", -1, 1], ["south", 0, 1], ["southeast", 1, 1],
+];
+
+/**
+ * The creatures standing next to the player, pet first.
+ *
+ * The map draws the player's own pet as an ordinary lowercase letter, so from the
+ * legend alone it is indistinguishable from a hostile monster — and the model
+ * talked itself into "blocked by my cat" without knowing whether the letter was
+ * even a pet. The engine marks the pet (MG_PET), so this states it outright.
+ */
+function neighbours(observation) {
+  const player = observation?.player;
+  if (!player) return [];
+  const at = new Map((observation.tiles ?? []).map((tile) => [`${tile.x},${tile.y}`, tile]));
+  const found = [];
+  for (const [name, dx, dy] of COMPASS) {
+    const tile = at.get(`${player.x + dx},${player.y + dy}`);
+    if (!tile?.text || tile.text === " ") continue;
+    const creature = /^[A-Za-z@&;:'"]$/.test(tile.text);
+    if (!creature && !tile.pet) continue;
+    found.push({ direction: name, glyph: tile.text, pet: !!tile.pet });
+  }
+  // Pet first: it is the one that changes what a move does (a swap, not a fight).
+  return found.sort((a, b) => Number(b.pet) - Number(a.pet));
+}
+
+/** One line for `nethack_observe`, or null when nothing is adjacent. */
+export function neighboursLine(observation) {
+  const found = neighbours(observation);
+  if (!found.length) return null;
+  return `next to you: ${found.map((n) => `${n.pet ? "your pet" : "a creature"} "${n.glyph}" (${n.direction})`).join(", ")}`;
+}
+
+function blockedHint(observation, direction) {
+  const occupant = occupantAt(observation, direction);
+  if (!occupant) return null;
+  if (occupant.pet) {
+    return `"${occupant.glyph}" there is ${occupant.label}. Moving into it swaps places with your follower instead of walking — press the same direction again to trade places, and do not attack it.`;
+  }
+  return `"${occupant.glyph}" there is ${occupant.label}: moving ${direction} attacks it rather than moving. Fight only if it is worth it, otherwise go around it or wait for it to move.`;
+}
+
 function adjacentThreats(observation) {
   const player = observation?.player;
   const found = new Set();
@@ -306,6 +405,41 @@ function adjacentThreats(observation) {
     if (/^[A-Za-z]$/.test(tile.text)) found.add(tile.text);
   }
   return found;
+}
+
+/**
+ * Show the pack again after a turn that can change it.
+ *
+ * The panel's pack is not live data: it is the rows of the last inventory screen
+ * the engine rendered, so it only moves when something puts that screen up. This
+ * re-renders it after actions that can move items between the pack and the world,
+ * and only while the engine is parked at the command prompt — a refresh during a
+ * question would replace the question (and a long walk would refresh per step).
+ * `i` displays without using a turn, and the resulting page is taken back off the
+ * queue by `NetHackGame`, so nothing is answered by accident.
+ *
+ * @returns the waiting kind afterwards, so the caller reports the real state.
+ */
+async function refreshPack(gameInstance) {
+  if (gameInstance.observe().waiting_for !== "command") return false;
+  if (!gameInstance.refreshInventory()) return false;
+  return (await settle(gameInstance, 1200)) === "command";
+}
+
+/**
+ * Whether an action that just ran can change the pack.
+ *
+ * Only the item verbs are inspected, and `raw_keys` is read as literal
+ * keystrokes because that is how the panel and the model reach item commands;
+ * a word typed into a `line` prompt is not a command and must not trigger this.
+ */
+function packMayHaveChanged(body) {
+  if (body?.action === "pickup" || body?.action === "descend" || body?.action === "ascend") return true;
+  if (body?.action !== "raw_keys") return false;
+  const keys = typeof body.keys === "string" ? body.keys : "";
+  // One keystroke only: a multi-key string is scripted input, and the panel sends
+  // exactly one key per press, so scanning it for letters would misfire.
+  return keys.length === 1 && ITEM_COMMAND_KEYS.has(keys);
 }
 
 async function actRepeated(instance, args, signal) {
@@ -392,7 +526,7 @@ async function actRepeated(instance, args, signal) {
     if (turnAdvanced || positionChanged) progressed = true;
     if (!turnAdvanced && !positionChanged && i + 1 < total) {
       stoppedFor = args?.action === "move" && args?.direction
-        ? `you cannot move ${args.direction} — the way is blocked`
+        ? (blockedHint(now, args.direction) ?? `you cannot move ${args.direction} — the way is blocked`)
         : "nothing changed — repeating it would have no effect";
       break;
     }
@@ -416,6 +550,46 @@ async function actRepeated(instance, args, signal) {
  * itself as the reply. Headers carry identifier 0 and are filtered out by the
  * caller.
  */
+/**
+ * The engine's `yn_function` choice string, spelled out as keys to send.
+ *
+ * The engine hands over its raw choice characters (`"12346789<>.s"` for a
+ * direction), which read as a wall of symbols: the model spent rounds guessing
+ * whether "north" or "8" goes into `nethack_respond`. Answering in the engine's
+ * own alphabet is the only thing that works, so the accepted answers are listed
+ * as literal replies.
+ *
+ * @returns lines to print under the question, or [] when there is nothing to add.
+ */
+export function answerLines(prompt) {
+  const choices = String(prompt?.choices ?? "");
+  const kind = prompt?.kind;
+  if (kind === "direction" || /\bin what direction\?$/i.test(prompt?.question ?? "")) {
+    // Measured on the real engine: those digits are accepted and the vi letters
+    // (h/j/k/l) are refused, so only the digits are offered.
+    return [
+      "accepted answers: exactly ONE of these keys —",
+      "  7=northwest 8=north 9=northeast 4=west 6=east 1=southwest 2=south 3=southeast, < = up stairs, > = down stairs, s = yourself (e.g. 'zap at myself'), Escape = cancel",
+      "  The vi letters h/j/k/l are NOT accepted by this engine. 'north', 'east' and other words are not accepted either.",
+    ];
+  }
+  if (kind === "menu" || kind === "pick") {
+    return ["accepted answers: the letter shown in front of an option (or its number); Enter confirms a single pick, Escape cancels."];
+  }
+  if (kind === "line") {
+    return ["accepted answers: any typed text; Enter submits it, Escape cancels."];
+  }
+  if (kind === "key") {
+    return ["accepted answers: any single key; Enter or Escape usually cancels."];
+  }
+  if (kind === "more") {
+    return ["accepted answers: space or Enter to continue (either works)."];
+  }
+  if (!choices) return [];
+  // No special kind: fall back to the engine's own alphabet, one key per answer.
+  return [`accepted answers: one of these keys: ${choices.split("").join(" ")}`];
+}
+
 function menuKey(item) {
   const acc = Number(item.accelerator);
   if (Number.isFinite(acc) && acc > 32 && acc < 127) return `[${String.fromCharCode(acc)}] `;
@@ -691,6 +865,9 @@ function registerTools(ctx) {
         describe(observation),
         `waiting_for: ${waiting}`,
       ];
+      // State the pet outright instead of leaving it to glyph guesswork.
+      const beside = neighboursLine(observation);
+      if (beside) lines.push(beside);
       if (waiting === "command") {
         lines.push("", "You are at the command prompt and may act with nethack_act.");
       } else if (waiting === "position") {
@@ -718,7 +895,8 @@ function registerTools(ctx) {
         lines.push("", `The game is asking for input (${waiting}). Answer it with nethack_respond.`);
         const prompt = observation.prompt;
         if (prompt?.question) lines.push(`question: ${prompt.question}`);
-        if (prompt?.choices) lines.push(`valid replies: ${prompt.choices}`);
+        if (prompt?.choices) lines.push(`raw choices from the engine: ${prompt.choices}`);
+        lines.push(...answerLines(prompt));
         if (prompt?.title) lines.push(`menu: ${prompt.title}`);
         if (prompt?.how) lines.push(`menu kind: ${prompt.how}`);
         if (Array.isArray(prompt?.items) && prompt.items.length) {
@@ -850,7 +1028,14 @@ function registerTools(ctx) {
       // Page through any --More-- the action produced instead of spending a round
       // on it; `run.stoppedFor` still explains why a long walk halted.
       const paged = await settlePastPages(instance, exec.signal);
-      const waiting = paged.waiting;
+      let waiting = paged.waiting;
+      // The model acts through these tools, so a pack change it caused must show
+      // up in the panel too. Same rule as the panel route: only item actions, and
+      // only once the engine is parked at the command prompt again.
+      if (waiting === "command" && packMayHaveChanged(args, instance.observe())) {
+        await refreshPack(instance);
+        waiting = instance.observe().waiting_for;
+      }
       const after = instance.observe();
       const lines = [
         describe(after),
@@ -864,12 +1049,15 @@ function registerTools(ctx) {
         lines.push(`repeated: ${run.performed}/${run.total}${run.clamped ? ` (count clamped to ${MAX_REPEAT})` : ""}`);
       }
       // No turn passed and the character did not move: say so outright. The
-      // count alone would read as "walked 5 tiles" to the model.
-      // No turn passed and the character did not move: say so outright. The
-      // count alone would read as "walked 5 tiles" to the model.
+      // count alone would read as "walked 5 tiles" to the model. Name what is
+      // standing there when it is a creature: a pet in the way is a swap, not a
+      // wall, and callers used to be told "blocked" and give up.
       if (run.performed > 0 && !run.progressed && !run.stoppedFor
         && args?.action === "move" && args?.direction) {
-        lines.push("", `You did not move: the way ${args.direction} is blocked.`);
+        const hint = blockedHint(before, args.direction);
+        lines.push("", hint
+          ? `You did not move ${args.direction}. ${hint}`
+          : `You did not move: the way ${args.direction} is blocked.`);
       }
       if (run.performed < run.total) {
         lines.push(
@@ -882,7 +1070,8 @@ function registerTools(ctx) {
       // Only what is new since the last tool call: re-sending the same lines every
       // round wastes attention and makes stale text look like fresh news.
       if (after.prompt?.question) lines.push(`question: ${after.prompt.question}`);
-      if (after.prompt?.choices) lines.push(`valid replies: ${after.prompt.choices}`);
+      if (after.prompt?.choices) lines.push(`raw choices from the engine: ${after.prompt.choices}`);
+      if (after.prompt) lines.push(...answerLines(after.prompt));
       const fresh = newMessages(instance, after);
       const recent = (fresh.length ? fresh : after.messages.slice(-3));
       if (recent.length) {
@@ -954,7 +1143,8 @@ function registerTools(ctx) {
         lines.push(`auto-paged ${paged.pages} --More-- page(s); the text is below.`);
       }
       if (after.prompt?.question) lines.push(`question: ${after.prompt.question}`);
-      if (after.prompt?.choices) lines.push(`valid replies: ${after.prompt.choices}`);
+      if (after.prompt?.choices) lines.push(`raw choices from the engine: ${after.prompt.choices}`);
+      if (after.prompt) lines.push(...answerLines(after.prompt));
       const fresh = newMessages(instance, after);
       if (fresh.length) lines.push("", "New messages:", ...fresh.slice(-10).map((m) => `  ${m}`));
       lines.push("", "Map:", renderMap(after));
@@ -1191,7 +1381,13 @@ export function registerRoutes(ctx, toolDefinitions = [], sessions) {
         ? game0.respond(body.reply ?? " ")
         : game0.act(body ?? {});
       if (!result.accepted) return json({ error: result.reason }, 409);
-      const waiting = await settle(game0, 3000);
+      let waiting = await settle(game0, 3000);
+      // Refresh only after the action has settled: a refresh during a still-running
+      // step would either be swallowed or land on a prompt nobody saw.
+      if (waiting === "command" && packMayHaveChanged(body, game0.observe())) {
+        await refreshPack(game0);
+        waiting = game0.observe().waiting_for;
+      }
       const observation = game0.observe();
       return json({
         ...observation,

@@ -3,10 +3,10 @@ import fs from 'node:fs';
 import test from 'node:test';
 const source = fs.readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
   .replace(/\n    return \{\n      inject: \[[^\]]*\],/, '\n    return {\n      __test: { GameControls },');
-function render({ waiting = 'command', expanded = false, confirming = false, busy = false } = {}) {
+function render({ waiting = 'command', confirming = false, busy = false } = {}) {
   let definition, slot = 0;
   const updates = [], calls = [];
-  const values = [expanded, confirming, ''];
+  const values = [confirming, ''];
   const React = {
     createElement: (type, props, ...children) => ({ type, props: props ?? {}, children: children.flat(Infinity).filter(Boolean) }),
     useState: () => { const index = slot++; return [values[index], value => updates.push([index, value])]; },
@@ -21,33 +21,37 @@ function render({ waiting = 'command', expanded = false, confirming = false, bus
   return { nodes, calls, updates, button };
 }
 
-test('lower-left buttons are present and restart requires explicit confirmation', async () => {
+test('the key pad is always visible, not behind a toggle, and restart asks first', async () => {
   const ui = render();
   assert.ok(ui.button('restart'));
-  assert.ok(ui.button('keys'));
+  // The manual used to be collapsed behind a "keys" toggle; it must now be
+  // permanently rendered so the person can always see the available keys.
+  assert.equal(ui.button('keys'), undefined, 'no collapse toggle should remain');
+  assert.ok(ui.button('↑'), 'the direction pad renders without expanding anything');
+  assert.ok(ui.button('pickupAction'), 'action buttons render without expanding anything');
   ui.button('restart').props.onClick();
   assert.deepEqual(ui.calls, []);
-  assert.equal(ui.updates[0][0], 1);
+  assert.equal(ui.updates[0][0], 0);
   const confirm = render({ confirming: true });
   await confirm.button('confirmRestart').props.onClick();
   assert.deepEqual(confirm.calls, [{ action: 'restart' }]);
 });
 
 test('direction pad sends one numpad key at command prompt', () => {
-  const ui = render({ expanded: true });
+  const ui = render();
   ui.button('↑').props.onClick();
   assert.deepEqual(ui.calls, [{ action: 'raw_keys', keys: '8' }]);
 });
 
 test('direction pad answers prompts rather than issuing a command', () => {
-  const ui = render({ expanded: true, waiting: 'direction' });
+  const ui = render({ waiting: 'direction' });
   ui.button('↑').props.onClick();
   assert.deepEqual(ui.calls, [{ kind: 'respond', reply: '8' }]);
   assert.equal(ui.button('searchAction').props.disabled, true);
 });
 
 test('local keyboard control ignores editable fields and modifier shortcuts', () => {
-  const ui = render({ expanded: true });
+  const ui = render();
   const group = ui.nodes.find(node => node.props.className === 'nhc-manual');
   const key = (target, extra = {}) => group.props.onKeyDown({ key: 'ArrowUp', target, preventDefault() {}, ...extra });
   key({ tagName: 'INPUT' });

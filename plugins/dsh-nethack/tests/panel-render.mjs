@@ -44,6 +44,19 @@ check('empty native transcript still reserves space above the bottom composer', 
   assert.ok(source.includes('.nhc-chat [data-composer-seat] { margin-top: auto;'));
 });
 
+check('the pack shows exactly one scrollbar, never nested ones', () => {
+  // The narrow side column and the pack element both fill the dock; when both
+  // were scroll containers a long pack rendered two scrollbars side by side.
+  assert.ok(/\.nhc-side > \.nhc-pack \{[^}]*overflow: hidden;/.test(source));
+  assert.ok(/\.nhc-pack \{ flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0;/.test(source));
+  assert.ok(/\.nhc-pack-body \{[^}]*overflow-y: auto;/.test(source));
+  assert.equal((source.match(/\.nhc-pack-body \{[^}]*overflow: auto;/g) ?? []).length, 0);
+  // The list inside the pack body used to carry its own max-height + overflow,
+  // which is the second scrollbar that kept appearing beside the pack's one.
+  assert.ok(!/\.nhc-inv \{[^}]*overflow:/.test(source));
+  assert.ok(!/\.nhc-inv \{[^}]*max-height:/.test(source));
+});
+
 // Props the renderer supplies to an entry, transcribed from its injection rule:
 // Installed renderer.standardKit supplies renderFactorySlot to EVERY entry;
 // renderSlot requires children, SessionProvider requires a non-root child.
