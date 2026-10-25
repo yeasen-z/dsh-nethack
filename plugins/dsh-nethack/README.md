@@ -14,9 +14,6 @@ game the model is playing, and the model sees the map you see.
 | DSH | `>=0.2.1-rc.3 <0.3.0` (`engines.dsh`; only 0.2.1-rc.3 was actually exercised) |
 | License | MIT for this bundle; the engine keeps its NetHack General Public License |
 
-<!-- Add a screenshot of the panel here before a wide release, e.g.:
-     ![The NetHack panel: map, pack, key controls and the game conversation](docs/panel.png) -->
-
 ## Install
 
 Pick one of these. Each ends the same way: enable the NetHack plugin **and** its
