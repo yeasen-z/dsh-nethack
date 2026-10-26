@@ -154,6 +154,12 @@ window.__ModuleLoader__.load({
 .nhc-root { display: flex; flex-direction: column; gap: 0; height: 100%; min-height: 0;
   box-sizing: border-box; overflow: hidden;
   color: var(--dsw-alias-label-primary); font-size: 12px; }
+/* The main slot reaches the top of the desktop window, including when the
+   sidebar is collapsed. Reserve the host's traffic-light clearance OUTSIDE the
+   scrolling canvas so messages cannot scroll back under the window buttons.
+   Docked tabs already have host chrome; browsers and fullscreen need no inset. */
+html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="main"] {
+  padding-top: var(--dsh-frame-top-clearance, 48px); }
 /* The game itself, in the space a conversation transcript would occupy. It is the
    only scrolling region, so the dock below never moves. */
 .nhc-canvas { display: flex; flex-direction: column; gap: 8px; flex: 2 1 0;
@@ -875,7 +881,7 @@ window.__ModuleLoader__.load({
         h(Inventory, { t, items: state?.inventory, gold: state?.status?.BL_GOLD }), controls);
 
       if (!state) {
-        return h("div", { className: "nhc-root" },
+        return h("div", { className: "nhc-root", "data-placement": props.placement },
           h("div", { className: "nhc-canvas" },
             h("p", { className: "nhc-notice" },
               error ? `${t("unreachable")}: ${error}` : t("loading")),
@@ -885,7 +891,7 @@ window.__ModuleLoader__.load({
       }
 
       if (state.ended) {
-        return h("div", { className: "nhc-root" },
+        return h("div", { className: "nhc-root", "data-placement": props.placement },
           h("div", { className: "nhc-canvas" },
             h("p", { className: "nhc-notice" }, t("ended")),
           ),
@@ -895,7 +901,7 @@ window.__ModuleLoader__.load({
 
       const question = state.waiting_for !== "command" && state.waiting_for !== "ended" ? state : null;
 
-      return h("div", { className: "nhc-root" },
+      return h("div", { className: "nhc-root", "data-placement": props.placement },
         h("div", { className: "nhc-canvas" },
           h(MessageTicker, { state, t }),
           h(StatusBar, { t, state, map: state.map, onRefresh: load }),
@@ -1127,7 +1133,8 @@ window.__ModuleLoader__.load({
         // A child declaration authorizes renderSlot; it does not render anything
         // by itself. Both entry points must return the child outlet explicitly.
         // Forward the tab's bound visibility hook across this extra slot layer.
-        const PanelEntry = (props) => props.renderSlot(PANEL_SLOT, {
+        const panelEntry = (placement) => (props) => props.renderSlot(PANEL_SLOT, {
+          placement,
           ...(typeof props.useTabInfo === "function" ? { useTabInfo: props.useTabInfo } : {}),
         });
         seatEffect("main panel", () => ctx.slots.inject("main", () => ctx.slots.register({
@@ -1136,7 +1143,7 @@ window.__ModuleLoader__.load({
           locale: NS,
           inject: injected,
           children: panelChildren,
-        }, PanelEntry)));
+        }, panelEntry("main"))));
 
         seatEffect("panel body", () => ctx.slots.inject(PANEL_SLOT, () => ctx.slots.register({
           name: PANEL_SLOT,
@@ -1179,7 +1186,7 @@ window.__ModuleLoader__.load({
             locale: NS,
             inject: injected,
             children: panelChildren,
-          }, PanelEntry)), "dsh-nethack.tab-body");
+          }, panelEntry("tab"))), "dsh-nethack.tab-body");
         });
       },
     };

@@ -79,6 +79,20 @@ check('panel renders without any session or conversation props', () => {
   assert.ok(JSON.stringify(tree).includes('nhc-root'), 'panel has no root element');
 });
 
+check('main panel reserves desktop window-button clearance outside the scroller', () => {
+  const tree = NetHackPanel({ ...injectedFor(null), placement: 'main' });
+  assert.equal(tree.props['data-placement'], 'main');
+  assert.ok(/\.nhc-root \{[^}]*box-sizing: border-box;/.test(source),
+    'clearance must fit within the panel height, not push the composer below it');
+  assert.ok(source.includes('html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="main"] {'));
+  assert.ok(source.includes('padding-top: var(--dsh-frame-top-clearance, 48px);'));
+  const tab = NetHackPanel({ ...injectedFor(null), placement: 'tab' });
+  assert.equal(tab.props['data-placement'], 'tab');
+  // Loading, ended and live-game roots must all carry the placement, not just
+  // the first paint. The root, not the scrolling canvas, owns the safe area.
+  assert.equal((source.match(/className: "nhc-root", "data-placement": props.placement/g) ?? []).length, 3);
+});
+
 check('factory rendering is always supplied, scoped child rendering is conditional', () => {
   const props = injectedFor(null);
   assert.equal(typeof props.renderFactorySlot, 'function');

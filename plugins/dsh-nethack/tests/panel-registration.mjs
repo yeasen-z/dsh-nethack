@@ -107,6 +107,8 @@ for (const slot of ['main', 'sidebar.right.pane.tab']) {
     assert.equal(output, panel, 'entry discarded its panel outlet');
     assert.equal(calls.length, 1);
     assert.equal(calls[0].name, 'nethack.panel.body');
+    assert.equal(calls[0].owner.placement, slot === 'main' ? 'main' : 'tab',
+      'only the main panel should reserve window-button clearance');
     if (slot === 'sidebar.right.pane.tab') {
       assert.equal(calls[0].owner.useTabInfo, useTabInfo, 'tab visibility hook was lost');
     }

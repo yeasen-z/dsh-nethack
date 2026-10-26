@@ -7,6 +7,12 @@
 > repository root, which also holds the middleware library described at the end.
 > Repository: [yeasen-z/dsh-nethack](https://github.com/yeasen-z/dsh-nethack).
 
+## Preview
+
+![NetHack gameplay in DeepSeek Harness](<playshot.png>)
+
+*Play NetHack inside DeepSeek Harness with natural-language chat and direct controls.*
+
 ## Install the DeepSeek Harness plugin
 
 The playable DSH bundle is [`plugins/dsh-nethack`](<plugins/dsh-nethack/README.md>):
