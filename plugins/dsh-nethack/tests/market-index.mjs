@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { buildMarketIndex, publicationStatus } from "../scripts/market-index.mjs";
+import { FORMER_NAMES, buildMarketIndex, publicationStatus } from "../scripts/market-index.mjs";
 
 const require = createRequire(import.meta.url);
 const bundleDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -73,6 +73,20 @@ test("generator preserves history and added date when publishing a new version",
   assert.deepEqual(plugin.versions.slice(1), entry.versions);
   assert.equal(plugin.metadata.sortKeys.added, entry.metadata.sortKeys.added);
   assert.equal(plugin.versions[0].version, "99.0.0");
+});
+
+test("a renamed package inherits its old entry's metadata but not its versions", () => {
+  const old = {
+    ...entry, name: FORMER_NAMES[0], metadata: { ...entry.metadata, keywords: ["kept"] },
+    versions: [{ ...version, version: "0.0.1" }],
+  };
+  const generated = buildMarketIndex({
+    current: { ...index, plugins: [old] }, manifest: { ...manifest, version: "9.9.9" }, icon: entry.icon,
+    commit: "b".repeat(40), timestamp: version.publishTimestamp + 1,
+  });
+  assert.deepEqual(generated.plugins.map((plugin) => plugin.name), [manifest.name]);
+  assert.deepEqual(generated.plugins[0].metadata.keywords, ["kept"]);
+  assert.deepEqual(generated.plugins[0].versions.map((release) => release.version), ["9.9.9"]);
 });
 
 test("DSH parser accepts the index and derives the install target", (t) => {

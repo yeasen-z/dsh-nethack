@@ -3,8 +3,12 @@
 All notable changes to the `dsh-nethack` bundle. The version here is the version
 in [`package.json`](package.json); the market index lists the same strings.
 
-## Unreleased
+## 2026-10-28 — 0.2.1
 
+- Rename the npm package to `@yeaszn/dsh-neth4ck`. npm refuses new package names
+  containing `nethack`; the DSH plugin id, panel, preset and routes are unchanged.
+  The market index lists the new name and drops the old `dsh-nethack` entry, so
+  anyone who installed the old name should reinstall once.
 - Document the plugin-market install path in both READMEs: the exact index-source
   URL, the **Plugins → Discover → Add index source** steps, and the queries that
   find the entry (`nethack`, its `net` prefix, `地牢`, `游戏`, the keywords and

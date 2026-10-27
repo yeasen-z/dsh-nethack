@@ -13,7 +13,7 @@ game the model is playing, and the model sees the map you see.
 
 | | |
 |---|---|
-| Package | `dsh-nethack` (a DSH bundle: Host plugin + Client plugin + agent preset) |
+| Package | `@yeaszn/dsh-neth4ck` on npm (a DSH bundle: Host plugin + Client plugin + agent preset); the plugin is still called `dsh-nethack` inside DSH |
 | Engine | `@neth4ck/wasm-367@2.1.2` — the published upstream NetHack 3.6.7 WASM build, not vendored |
 | DSH | `>=0.2.1-rc.3 <0.3.0` (`engines.dsh`; only 0.2.1-rc.3 was actually exercised) |
 | License | MIT for this bundle; the engine keeps its NetHack General Public License |
@@ -74,11 +74,18 @@ repository root:
 {"action":"install_bundle","target":"/absolute/path/to/dsh-nethack/plugins/dsh-nethack"}
 ```
 
-### From npm (after publication)
+### From npm
+
+In **Plugins → Add plugin** type the package name, or ask the plugin manager:
 
 ```json
-{"action":"install_bundle","target":"dsh-nethack@0.1.0"}
+{"action":"install_bundle","target":"@yeaszn/dsh-neth4ck@0.2.1"}
 ```
+
+The npm name is `@yeaszn/dsh-neth4ck`: the registry rejects a new package whose name
+contains `nethack` ("That word is not allowed"), so the package is published under
+a respelling. Nothing else changes: the panel, the `@ / NetHack` entry, the
+`nethack` preset and the `/api/dsh-nethack.*` routes keep their names.
 
 The manifest carries `license`, `repository`, `keywords` and `engines.dsh`, and
 the bundling is allowed to fetch its engine dependency from the registry.

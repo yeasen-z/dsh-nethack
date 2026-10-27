@@ -12,7 +12,7 @@ const manifest = JSON.parse(
 );
 
 test("the bundle is publishable and installable", () => {
-  assert.equal(manifest.name, "dsh-nethack");
+  assert.equal(manifest.name, "@yeaszn/dsh-neth4ck");
   assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
   // "private": true makes npm refuse the publish outright.
   assert.notEqual(manifest.private, true);

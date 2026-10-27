@@ -7,6 +7,10 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const repositoryUrl = "https://github.com/yeasen-z/dsh-nethack";
+// Earlier names of this package. Their index entry supplies the title, metadata and
+// "added" date to the renamed entry and is then dropped; their versions are not
+// carried over, because those releases pin code whose package.json has the old name.
+export const FORMER_NAMES = ["dsh-nethack"];
 const git = (repo, ...args) => execFileSync("git", ["-C", repo, ...args], { encoding: "utf8" }).trim();
 
 // This is a local tracking-ref check, NOT proof of live remote accessibility.
@@ -22,7 +26,9 @@ export function buildMarketIndex({ current, manifest, icon, commit, timestamp })
   if (!manifest.engines?.dsh) throw new Error("package.json must declare engines.dsh");
   if (!/^[0-9a-f]{40}$/.test(commit)) throw new Error("release commit must be a full SHA");
   if (!Number.isSafeInteger(timestamp) || timestamp <= 0) throw new Error("invalid release timestamp");
-  const previous = current.plugins?.find((entry) => entry.name === manifest.name);
+  const own = current.plugins?.find((entry) => entry.name === manifest.name);
+  const former = own ? undefined : current.plugins?.find((entry) => FORMER_NAMES.includes(entry.name));
+  const previous = own ?? former;
   const version = {
     version: manifest.version,
     publishTimestamp: timestamp,
@@ -45,9 +51,10 @@ export function buildMarketIndex({ current, manifest, icon, commit, timestamp })
       ...(previous?.metadata ?? { category: "games", keywords: ["nethack", "roguelike", "game", "wasm", "agent"], labels: ["nethack", "agent-play"] }),
       sortKeys: { ...previous?.metadata?.sortKeys, added: previous?.metadata?.sortKeys?.added ?? timestamp },
     },
-    versions: [version, ...(previous?.versions ?? []).filter((entry) => entry.version !== version.version)],
+    versions: [version, ...(own?.versions ?? []).filter((entry) => entry.version !== version.version)],
   };
-  return { ...current, plugins: [plugin, ...(current.plugins ?? []).filter((entry) => entry.name !== manifest.name)] };
+  const dropped = new Set([manifest.name, ...FORMER_NAMES]);
+  return { ...current, plugins: [plugin, ...(current.plugins ?? []).filter((entry) => !dropped.has(entry.name))] };
 }
 
 function main() {
