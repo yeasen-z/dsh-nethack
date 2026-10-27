@@ -29,7 +29,7 @@ engine expects.*
 The playable DSH bundle is [`plugins/dsh-nethack`](<plugins/dsh-nethack/README.md>):
 the real NetHack 3.6.7 WASM engine, a status HUD and map stage, one always-visible
 console, a pack and message-log tab, and a separate native game conversation. No
-engine compilation and no npm publication are needed.
+engine compilation is needed.
 
 **Requirements:** DSH `>=0.2.1-rc.3 <0.3.0` (declared as `engines.dsh`; only
 0.2.1-rc.3 was actually exercised) and a configured model/provider if you want
@@ -49,6 +49,18 @@ names, authors, keywords, and every language of the titles and descriptions, so
 `net` works as a prefix, and `地牢`, `游戏`, `roguelike`, `wasm`, `agent` and the
 author `yeasen-z` all match. Words are ANDed, so `nethack postgres` finds
 nothing.
+
+### From npm
+
+In **Plugins → Add plugin**, type the package name:
+
+```text
+@yeaszn/dsh-neth4ck
+```
+
+This is the same bundle as the other paths. npm refuses new package names that
+contain `nethack`, so the package is published as `dsh-neth4ck`; inside DSH the
+plugin, the panel and the preset are still called NetHack.
 
 ### From a clone
 
@@ -72,7 +84,7 @@ change under you:
 
 `<commit>` is any full SHA from this repository; the newest one on the market
 page is the pin in [`market/index.json`](<plugins/dsh-nethack/market/index.json>)
-(`versions[0].source.commit`). The npm path and the release procedure are in the
+(`versions[0].source.commit`). The release procedure is in the
 [bundle guide](<plugins/dsh-nethack/README.md>).
 
 Approve the installation and enable **both** the NetHack plugin and its
