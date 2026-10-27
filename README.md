@@ -62,6 +62,11 @@ This is the same bundle as the other paths. npm refuses new package names that
 contain `nethack`, so the package is published as `dsh-neth4ck`; inside DSH the
 plugin, the panel and the preset are still called NetHack.
 
+If the install fails with `404 ... Not Found`, the **Install source** selector is
+on a mirror that has not synced this package yet (the mainland China mirror,
+`registry.npmmirror.com`, lags the official registry for new packages). Switch it
+to **npm official** and install again, or wait a few minutes and retry.
+
 ### From a clone
 
 ```sh

@@ -87,6 +87,13 @@ contains `nethack` ("That word is not allowed"), so the package is published und
 a respelling. Nothing else changes: the panel, the `@ / NetHack` entry, the
 `nethack` preset and the `/api/dsh-nethack.*` routes keep their names.
 
+If the install fails with `404 ... Not Found`, the **Install source** selector is
+on a mirror that has not synced the package yet: the mainland China mirror
+(`registry.npmmirror.com`) lags the official registry for new packages and
+versions. Switch the source to **npm official** and install again, or wait a few
+minutes and retry. A maintainer can force the mirror to catch up with
+`curl -X PUT "https://registry-direct.npmmirror.com/@yeaszn/dsh-neth4ck/sync?sync_upstream=true"`.
+
 The manifest carries `license`, `repository`, `keywords` and `engines.dsh`, and
 the bundling is allowed to fetch its engine dependency from the registry.
 
