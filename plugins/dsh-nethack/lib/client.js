@@ -68,15 +68,24 @@ window.__ModuleLoader__.load({
     const ROUTE_ACTION = "/api/dsh-nethack.action";
     const ROUTE_SESSION = "/api/dsh-nethack.session";
 
-    /** Glyph colours by tty character, matching NetHack's own screen classes. */
+    /**
+     * Glyph colours by tty character, matching NetHack's own screen classes.
+     *
+     * Order matters where two objects share a glyph: a closed door is drawn as
+     * `+` and so is a spellbook, and a tile that is not a known object is
+     * almost always the door, so `+` is a door here. `░` is this panel's own
+     * mark for a cell the engine never drew (not the engine's `?`, which is a
+     * scroll), so it gets its own dim class instead of reading as an object.
+     */
     const GLYPH_CLASS = {
       "@": "hero",
       "<": "stairs", ">": "stairs",
       "#": "corridor", ".": "floor",
+      "░": "blind",
       "$": "gold", "*": "gold", "!": "potion", "?": "scroll", "%": "food",
-      "/": "weapon", "(": "weapon", "[": "armor", "=": "ring",
-      '"': "amulet", "+": "spellbook", "\\": "tool",
-      "-": "wall", "|": "wall",
+      "/": "weapon", ")": "weapon", "(": "weapon", "[": "armor", "=": "ring",
+      '"': "amulet", "+": "door", "\\": "tool",
+      "-": "wall", "|": "wall", "^": "trap",
     };
 
     /** Monster letters, so wildlife is never drawn as an item. */
@@ -90,68 +99,96 @@ window.__ModuleLoader__.load({
       en: {
         panel: "NetHack",
         refresh: "Refresh now",
-        inventory: "Carrying",
-        noInventory: "Press i to look at your pack.",
+        inventory: "Pack",
+        noInventory: "Your pack is empty. Nothing is carried yet.",
         loading: "Starting NetHack…",
         unreachable: "Could not reach the game",
         asking: "The game is asking",
         reply: "Your answer",
         answer: "Answer",
-        more: "--More-- (press space to continue)",
+        more: "Space or Enter to continue",
         yn: "Yes or no?",
         line: "Type your answer:",
         menu: "Choose an option by its key.",
-        position: "Pick a position on the map (travel/farlook).",
+        position: "The game wants a position on the map (travel/farlook). Direction keys move a cursor here — cancel with Escape.",
         waiting: "Waiting for your reply.",
         emptyMap: "(no map yet)",
-        ac: "AC", gold: "Gold", turn: "Turn", ended: "The game is over.",
-        chatNoWorkspace: "No workspace is open yet, so the game cannot start its conversation.",
-        chatBusySession: "The game could not claim a session of its own — it would have taken over a session you had started. Try again.",
-        chatUnavailable: "DSH sessions are unavailable in this build, so the game has no chat.",
+        ac: "AC", gold: "Gold", turn: "Turn",
+        hp: "HP", pw: "Pw", str: "Str", lvl: "Lv", status: "Status",
         chatFailed: "This game's conversation could not start",
         restart: "New game", keys: "Key controls", restartConfirm: "Discard this game and start over?",
-        confirmRestart: "Discard and restart", cancel: "Cancel", manualHint: "Arrows or numpad to move; controls only capture keys while focused.",
-        waitAction: "Wait", pickupAction: "Pick up", searchAction: "Search", openAction: "Open", descendAction: "Downstairs", ascendAction: "Upstairs",
-        keyReply: "Key / answer", sendKey: "Send", continueAction: "Space", enterAction: "Enter", escapeAction: "Esc",
+        confirmRestart: "Discard and restart", cancel: "Cancel",
+        manualHint: "Arrows or numpad to move; keys are captured only while this console is focused.",
+        waitAction: "Wait", eatAction: "Eat",
+        actPickup: "Pick up", actSearch: "Search", actOpen: "Open",
+        actDescend: "Down", actAscend: "Upstairs",
+        keyReply: "Key / answer", continueAction: "Space", enterAction: "Enter", escapeAction: "Esc",
+        captured: "Keyboard captured", notCaptured: "Click to capture keys",
         chatStarting: "Starting this game's conversation…",
         chatAttaching: "Giving this conversation the game…",
+        tabChat: "AI partner", tabPack: "Pack", tabLog: "Messages",
+        seeAllMessages: "All messages", messages: "Messages",
+        noMessages: "No messages yet.",
+        legend: "Map key", legendBtn: "Explain the map symbols",
+        legendHero: "You", legendPet: "Your pet", legendMonster: "Monster",
+        legendFloor: "Room floor", legendCorridor: "Corridor (walkable)", legendWall: "Wall",
+        legendDoor: "Closed door", legendStairs: "Stairs", legendTrap: "Seen trap",
+        legendItem: "Item", legendBlind: "Unseen cell: not floor, not wall",
+        gameOver: "The game is over. Start a new one to continue.",
       },
       zh: {
         panel: "NetHack 地牢",
         refresh: "立即刷新",
         inventory: "背包",
-        noInventory: "按 i 查看背包。",
+        noInventory: "背包是空的，还没有捡到任何东西。",
         loading: "正在启动 NetHack……",
         unreachable: "无法连接游戏",
         asking: "游戏正在询问",
         reply: "你的回答",
         answer: "回答",
-        more: "--More--（按空格继续）",
+        more: "按空格或回车继续",
         yn: "是或否？",
         line: "请输入回答：",
         menu: "请按键选择一项。",
-        position: "请在地图上选一个位置（旅行/查看）。",
+        position: "游戏要你在地图上选一个位置（旅行/查看）：这里方向键移动的是光标，不是角色，按 Esc 取消。",
         waiting: "等待你的回答。",
         emptyMap: "（尚未绘制地图）",
-        ac: "防御", gold: "金币", turn: "回合", ended: "游戏结束。",
-        chatNoWorkspace: "还没有打开工作区，游戏无法创建自己的对话。",
-        chatBusySession: "游戏没能拿到属于自己的会话——否则会占用你已经开着的那个会话。请再试一次。",
-        chatUnavailable: "当前环境没有可用的 DSH 会话服务，无法开启对话。",
+        ac: "防御", gold: "金币", turn: "回合",
+        hp: "生命", pw: "法力", str: "力量", lvl: "等级", status: "状态",
         chatFailed: "这一局的对话没能启动",
         restart: "重开游戏", keys: "按键操作", restartConfirm: "放弃当前进度，开始新的一局？",
-        confirmRestart: "确认重开", cancel: "取消", manualHint: "方向键或小键盘移动；仅聚焦此区域时接管按键，不影响聊天输入。",
-        waitAction: "等待", pickupAction: "拾取", searchAction: "搜索", openAction: "开门", descendAction: "下楼", ascendAction: "上楼",
-        keyReply: "按键／回答", sendKey: "发送", continueAction: "空格", enterAction: "回车", escapeAction: "取消 Esc",
+        confirmRestart: "确认重开", cancel: "取消",
+        manualHint: "方向键或小键盘移动；仅聚焦这个区域时接管按键，不影响聊天输入。",
+        waitAction: "等待", eatAction: "吃",
+        actPickup: "拾取", actSearch: "搜索", actOpen: "开门",
+        actDescend: "下楼", actAscend: "上楼",
+        keyReply: "按键／回答", continueAction: "空格", enterAction: "回车", escapeAction: "取消",
+        captured: "键盘已接管", notCaptured: "点击接管键盘",
         chatStarting: "正在为这一局创建对话……",
         chatAttaching: "正在把游戏接入这个对话……",
+        tabChat: "AI 搭档", tabPack: "背包", tabLog: "消息",
+        seeAllMessages: "全部消息", messages: "消息",
+        noMessages: "还没有消息。",
+        legend: "地图图例", legendBtn: "图例：解释地图符号",
+        legendHero: "你", legendPet: "你的宠物", legendMonster: "怪物",
+        legendFloor: "房间地板", legendCorridor: "走廊（可通行）", legendWall: "墙",
+        legendDoor: "关着的门", legendStairs: "楼梯", legendTrap: "已知陷阱",
+        legendItem: "物品", legendBlind: "未知格：既不是地板也不是墙",
+        gameOver: "游戏已结束，开一局新的继续。",
       },
     };
 
-    // The right column is narrow, so the whole panel is one column: a dense
-    // summary bar, the fitted map, the pad, then collapsible lists. Sizes are
-    // deliberately small and every colour is a host theme token.
+    // Layout: the game gets the left column and the conversation the right one.
+    //
+    // It used to be stacked (map on top, chat below, 2:3), which made the map the
+    // smaller half and forced it to shrink to unreadable sizes whenever the
+    // window got short. Now the map owns a full-height column and only the right
+    // column can be squeezed; the container query below collapses to one column
+    // for a narrow dock (the right-column tab) instead of cramping both.
+    //
+    // Every colour is a real host theme token, so light and dark both follow.
     const CSS = `
-.nhc-root { display: flex; flex-direction: column; gap: 0; height: 100%; min-height: 0;
+.nhc-root { display: flex; flex-direction: column; height: 100%; min-height: 0;
   box-sizing: border-box; overflow: hidden;
   color: var(--dsw-alias-label-primary); font-size: 12px; }
 /* The main slot reaches the top of the desktop window, including when the
@@ -160,173 +197,232 @@ window.__ModuleLoader__.load({
    Docked tabs already have host chrome; browsers and fullscreen need no inset. */
 html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="main"] {
   padding-top: var(--dsh-frame-top-clearance, 48px); }
-/* The game itself, in the space a conversation transcript would occupy. It is the
-   only scrolling region, so the dock below never moves. */
-.nhc-canvas { display: flex; flex-direction: column; gap: 8px; flex: 2 1 0;
-  min-height: 0; overflow: auto; padding: 12px; }
-/* Below the map: the pack on the left, the conversation on the right. Both columns
-   share the dock's height and scroll internally, so a long pack or a long
-   transcript can never push the composer out of the panel. */
-/* Give the conversation/pack about 60% of the flexible height; the map
-   fits into the remaining 40%. Keep both usable in short panels. */
-.nhc-dock { flex: 3 1 0; min-height: 260px; max-height: 65%; display: flex; align-items: stretch; gap: 10px;
-  padding: 10px 12px 12px;
-  border-top: 1px solid var(--dsw-alias-border-l1);
-  background: var(--dsw-alias-bg-layer-1); }
-.nhc-side { flex: 0 0 clamp(150px, 22%, 230px); min-height: 0; display: flex; flex-direction: column; gap: 8px; }
-.nhc-side > .nhc-pack { flex: 1 1 auto; min-height: 0; overflow: hidden; }
-.nhc-controls { margin-top: auto; flex: none; display: flex; flex-direction: column; gap: 6px; }
-.nhc-control-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
-/* The game needs at least one full open viewport, so the dock never scrolls.
-   With the manual always open the map column cannot supply that height, so the
-   width breakpoints below must not cap the dock; the panel scrolls instead. */
-/* The manual is permanent, so it is sized to stay fully visible in the dock
-   instead of scrolling: the command entry must never be pushed out of reach. */
-.nhc-manual { flex: 0 0 auto; padding: 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; }
-.nhc-manual:focus { outline: 2px solid var(--dsw-alias-border-l2); }
-.nhc-keygrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 6px 0; }
-.nhc-keyreply { display: flex; gap: 4px; margin-top: 6px; }
-.nhc-keyreply input { min-width: 0; width: 100%; color: inherit; background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l2); }
-.nhc-confirm { padding: 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; }
-.nhc-confirm p, .nhc-manual p { margin: 0 0 6px; }
-.nhc-main { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; }
-.nhc-main .nhc-chat { flex: 1 1 auto; min-height: 0; border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 10px; box-shadow: 0 6px 20px rgb(0 0 0 / 12%); }
-/* A narrow panel stacks the two columns instead of squeezing both. */
-@media (max-width: 640px) {
-  .nhc-dock { flex-direction: column; }
-  .nhc-side { flex: none; max-height: 34%; }
+
+/* ---- the two-column body ------------------------------------------------ */
+.nhc-body { flex: 1 1 auto; min-height: 0; display: grid; gap: 0;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 32%, 360px);
+  grid-template-rows: auto minmax(0, 1fr); }
+.nhc-hud { grid-column: 1 / -1; }
+.nhc-play { grid-column: 1; grid-row: 2; min-width: 0; min-height: 0; }
+.nhc-side { grid-column: 2; grid-row: 2; min-height: 0; }
+/* A narrow dock has no room for two columns: keep the game first, put the side
+   under it, and let the whole panel scroll rather than squeeze either. */
+@container (max-width: 780px) {
+  .nhc-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto;
+    overflow-y: auto; }
+  .nhc-play { grid-row: auto; }
+  .nhc-side { grid-row: auto; min-height: 340px; border-left: 0;
+    border-top: 1px solid var(--dsw-alias-border-l1); }
+  .nhc-stats .nhc-stat-extra { display: none; }
 }
-/* A very short panel cannot honour the 260px dock floor without starving the map.
-   Below that the dock drops its floor and the two areas share the height by their
-   flex ratio (2:3), which keeps both usable. A fixed canvas min-height was the
-   wrong lever: it pushed the dock to 22px and the composer disappeared. */
-@media (max-height: 520px) {
-  .nhc-dock { min-height: 0; }
-}
-.nhc-bar { display: flex; align-items: center; gap: 8px; flex: none; }
-.nhc-summary { flex: 1 1 auto; min-width: 0; font-size: 11px; font-variant-numeric: tabular-nums;
-  color: var(--dsw-alias-label-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.nhc-icon-btn { font: inherit; flex: none; width: 24px; height: 24px; padding: 0;
-  display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
-  border-radius: 6px; border: 1px solid var(--dsw-alias-border-l1);
-  background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); }
-.nhc-icon-btn:hover:not(:disabled) { background: var(--dsw-alias-bg-overlay);
-  border-color: var(--dsw-alias-border-l2); color: var(--dsw-alias-label-primary); }
-.nhc-icon-btn:disabled { opacity: .45; cursor: not-allowed; }
-/* One card holds the whole game view. The map is its face; the facts and the
-   two collapsibles are rows inside it, divided by hairlines rather than each
-   carrying its own border. */
-.nhc-card { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
-  border-radius: 12px; overflow: hidden;
-  background: var(--dsw-alias-bg-layer-1);
-  border: 1px solid var(--dsw-alias-border-l1); }
-.nhc-map { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 10px;
-  background: var(--dsw-alias-bg-layer-2); }
-/* The at-a-glance row under the map: HP and AC first (larger), then the quiet
-   facts, then any conditions as pills. */
-.nhc-facts { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px;
-  padding: 9px 12px; border-top: 1px solid var(--dsw-alias-border-l1); }
-.nhc-fact b { display: block; font-size: 15px; font-weight: 600; line-height: 1.15;
-  font-variant-numeric: tabular-nums; }
-.nhc-fact span { display: block; font-size: 10px; letter-spacing: .04em;
+.nhc-root { container-type: inline-size; }
+
+/* ---- HUD: who/where, HP and Pw bars, facts, conditions, actions ---------- */
+.nhc-hud { flex: none; display: flex; align-items: center; gap: 16px;
+  padding: 9px 14px; min-width: 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-module-platform); }
+.nhc-who { display: flex; align-items: center; gap: 9px; min-width: 0; flex: none; }
+.nhc-avatar { width: 32px; height: 32px; flex: none; border-radius: 9px; display: grid; place-items: center;
+  font: 700 17px ui-monospace, SFMono-Regular, Menlo, monospace; font-style: normal;
+  color: var(--dsw-alias-label-primary); background: var(--dsw-alias-interactive-bg-hover); }
+.nhc-who b { display: block; font-size: 12.5px; font-weight: 600; white-space: nowrap;
+  max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
+.nhc-who span { display: block; font-size: 10.5px; white-space: nowrap;
   color: var(--dsw-alias-label-secondary); }
-.nhc-fact-key b { font-size: 17px; }
-.nhc-fact-sep { width: 1px; align-self: stretch; margin: 2px 2px;
-  background: var(--dsw-alias-border-l1); }
-.nhc-conds { display: flex; flex-wrap: wrap; gap: 5px; margin-left: auto; }
-.nhc-mapgrid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  line-height: 1.15; white-space: pre; }
-.nhc-mapgrid > div { white-space: pre; }
-/* Keep the actual @ legible: a filled highlight can swallow its glyph at
-   small map sizes, especially when theme text/accent colors are similar. */
-.nhc-g.hero { color: var(--dsw-alias-label-primary); background: transparent; font-weight: 700; }
-.nhc-g.monster { color: var(--dsw-alias-state-error-primary); }
+.nhc-bars { display: flex; flex-direction: column; gap: 5px; flex: 0 1 190px; min-width: 120px; }
+.nhc-bar { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: 6px;
+  font-size: 10px; color: var(--dsw-alias-label-secondary); }
+.nhc-bar-track { height: 6px; border-radius: 99px; overflow: hidden;
+  background: var(--dsw-alias-interactive-bg-hover);
+  border: 1px solid var(--dsw-alias-border-l1); }
+.nhc-bar-fill { height: 100%; border-radius: 99px; transition: width .3s ease;
+  background: var(--dsw-alias-state-success-primary); }
+.nhc-bar.mid .nhc-bar-fill { background: var(--dsw-alias-state-warn-primary); }
+.nhc-bar.low .nhc-bar-fill { background: var(--dsw-alias-state-error-primary); }
+.nhc-bar.pw .nhc-bar-fill { background: var(--dsw-alias-brand-primary); }
+.nhc-bar em { font: 600 10.5px ui-monospace, monospace; font-style: normal; text-align: right;
+  font-variant-numeric: tabular-nums; color: var(--dsw-alias-label-primary); }
+.nhc-stats { display: flex; gap: 13px; min-width: 0; overflow: hidden; }
+.nhc-stat b { display: block; font: 600 13.5px ui-monospace, monospace; line-height: 1.15;
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nhc-stat span { display: block; font-size: 9.5px; letter-spacing: .04em; white-space: nowrap;
+  color: var(--dsw-alias-label-secondary); }
+.nhc-conds { display: flex; gap: 5px; flex-wrap: wrap; flex: 1 1 auto; min-width: 0; justify-content: flex-end; }
+.nhc-cond { font-size: 10px; padding: 2px 8px; border-radius: 99px; white-space: nowrap;
+  color: var(--dsw-alias-label-secondary);
+  border: 1px solid var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-layer-1); }
+.nhc-cond.bad { color: var(--dsw-alias-state-error-primary);
+  border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, transparent); }
+.nhc-hud-actions { display: flex; gap: 5px; flex: none; }
+
+/* ---- buttons shared by every surface ------------------------------------ */
+.nhc-btn { font: inherit; font-size: 12px; display: inline-flex; align-items: center; justify-content: center;
+  gap: 5px; min-height: 28px; padding: 0 9px; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary); transition: background .1s, border-color .1s; }
+.nhc-btn:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); border-color: var(--dsw-alias-border-l2); }
+.nhc-btn:active:not(:disabled) { background: var(--dsw-alias-interactive-bg-active); }
+.nhc-btn:disabled { opacity: .42; cursor: not-allowed; }
+.nhc-btn kbd { font: 700 10px ui-monospace, monospace; color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-interactive-bg-hover); border-radius: 4px; padding: 1px 5px; }
+.nhc-ib { font: inherit; width: 30px; height: 30px; flex: none; padding: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 14px;
+  border-radius: 8px; border: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-secondary); }
+.nhc-ib:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover);
+  border-color: var(--dsw-alias-border-l2); color: var(--dsw-alias-label-primary); }
+.nhc-ib:disabled { opacity: .42; cursor: not-allowed; }
+
+/* ---- the game column: stage + console ----------------------------------- */
+.nhc-play { display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 12px; }
+.nhc-stage { position: relative; flex: 1 1 auto; min-height: 180px; display: flex;
+  align-items: center; justify-content: center; padding: 34px 10px 24px;
+  border-radius: 12px; overflow: hidden;
+  background: var(--dsw-alias-bg-layer-2);
+  border: 1px solid var(--dsw-alias-border-l1); }
+/* The engine's last lines float over the map instead of taking rows from it.
+   Older lines fade so the newest one is the one being read. */
+.nhc-overlay { position: absolute; top: 8px; left: 10px; right: 10px; display: flex;
+  align-items: flex-start; gap: 8px; pointer-events: none; }
+.nhc-overlay-log { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.nhc-overlay-log p { margin: 0; font-size: 11.5px; line-height: 1.35; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; color: var(--dsw-alias-label-secondary); }
+.nhc-overlay-log p:nth-last-child(n+3) { opacity: .5; }
+.nhc-overlay-log p:last-child { color: var(--dsw-alias-label-primary); }
+.nhc-overlay-log p:last-child::before { content: "›"; margin-right: 6px; font-weight: 700;
+  color: var(--dsw-alias-brand-primary); }
+.nhc-overlay-btn { pointer-events: auto; flex: none; font: inherit; font-size: 10.5px;
+  padding: 3px 8px; cursor: pointer; border-radius: 6px;
+  border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-secondary); }
+.nhc-overlay-btn:hover { color: var(--dsw-alias-label-primary); border-color: var(--dsw-alias-border-l2); }
+.nhc-where { position: absolute; left: 12px; bottom: 6px; font-size: 10.5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
+.nhc-legend-btn { position: absolute; right: 10px; bottom: 5px; width: 22px; height: 22px;
+  font-size: 12px; border-radius: 6px; }
+.nhc-legend { position: absolute; right: 10px; bottom: 32px; z-index: 3;
+  display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 3px 8px;
+  padding: 10px 12px; border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l2);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 18%); font-size: 11px; color: var(--dsw-alias-label-secondary); }
+.nhc-legend code { font: 700 13px ui-monospace, monospace; text-align: center; }
+.nhc-map { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.16;
+  white-space: pre; user-select: none; overflow: auto; max-width: 100%; max-height: 100%; }
+.nhc-map > div { white-space: pre; }
+.nhc-g.hero { color: var(--dsw-alias-label-primary); font-weight: 800;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--dsw-alias-brand-primary) 70%, transparent); }
+.nhc-g.pet { color: var(--dsw-alias-label-primary); font-weight: 700;
+  text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-color: var(--dsw-alias-state-success-primary); }
+.nhc-g.monster { color: var(--dsw-alias-state-error-primary); font-weight: 700; }
 .nhc-g.wall { color: var(--dsw-alias-label-secondary); }
-.nhc-g.corridor { color: var(--dsw-alias-state-idle-primary); }
-.nhc-g.floor { color: var(--dsw-alias-label-secondary); opacity: .5; }
-.nhc-g.stairs { color: var(--dsw-alias-state-success-primary); font-weight: 700; }
+.nhc-g.floor { color: var(--dsw-alias-label-tertiary); }
+.nhc-g.corridor { color: var(--dsw-alias-label-secondary); opacity: .85; }
+.nhc-g.door { color: var(--dsw-alias-state-warn-primary); }
+.nhc-g.stairs { color: var(--dsw-alias-state-success-primary); font-weight: 800; }
 .nhc-g.gold { color: var(--dsw-alias-state-warn-primary); }
-.nhc-g.potion, .nhc-g.spellbook { color: var(--dsw-alias-brand-primary); }
-.nhc-g.weapon, .nhc-g.armor { color: var(--dsw-alias-label-primary); opacity: .8; }
+.nhc-g.trap { color: var(--dsw-alias-state-error-primary); }
+.nhc-g.potion, .nhc-g.spellbook, .nhc-g.item { color: var(--dsw-alias-brand-primary); }
+.nhc-g.weapon, .nhc-g.armor { color: var(--dsw-alias-label-primary); opacity: .85; }
 .nhc-g.ring, .nhc-g.amulet { color: var(--dsw-alias-state-success-primary); }
 .nhc-g.scroll, .nhc-g.tool, .nhc-g.food { color: var(--dsw-alias-label-secondary); }
-.nhc-btn { font: inherit; font-size: 12px; display: inline-flex; align-items: center; justify-content: center;
-  min-width: 34px; min-height: 28px; padding: 0 8px; border-radius: 6px; cursor: pointer;
+.nhc-g.blind { color: var(--dsw-alias-label-tertiary); opacity: .35; }
+.nhc-g.other { color: var(--dsw-alias-label-secondary); }
+.nhc-blank { margin: 0; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+
+/* ---- the pending question, raised over the map ------------------------- */
+.nhc-ask { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+  width: min(560px, calc(100% - 24px)); z-index: 4;
+  display: flex; flex-direction: column; gap: 8px; padding: 11px 13px;
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid color-mix(in srgb, var(--dsw-alias-state-warn-primary) 45%, var(--dsw-alias-border-l2));
+  box-shadow: 0 10px 28px rgb(0 0 0 / 22%); }
+.nhc-ask h4 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 10px;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--dsw-alias-state-warn-primary); font-weight: 600; }
+.nhc-ask h4 span { margin-left: auto; font-weight: 400; letter-spacing: 0;
+  text-transform: none; color: var(--dsw-alias-label-tertiary); }
+.nhc-ask p { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.nhc-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.nhc-opt { display: inline-flex; align-items: center; gap: 7px; min-height: 28px;
+  padding: 0 10px 0 5px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 12px;
+  border: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary); max-width: 100%; }
+.nhc-opt:hover:not(:disabled) { border-color: var(--dsw-alias-brand-primary); }
+.nhc-opt:disabled { opacity: .42; cursor: not-allowed; }
+.nhc-opt kbd { min-width: 20px; height: 20px; padding: 0 5px; border-radius: 5px;
+  display: inline-grid; place-items: center; font: 700 11px ui-monospace, monospace;
+  color: var(--dsw-alias-brand-primary); background: var(--dsw-alias-interactive-bg-hover); }
+.nhc-opt-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nhc-opt.ghost { color: var(--dsw-alias-label-secondary); }
+.nhc-askform { display: flex; gap: 6px; }
+.nhc-input { font: inherit; font-size: 12px; flex: 1 1 auto; min-width: 0; height: 28px;
+  padding: 0 9px; border-radius: 7px;
+  border: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
+.nhc-input:focus { outline: none; border-color: var(--dsw-alias-brand-primary); }
+
+/* ---- console: the one always-visible manual control surface ------------ */
+.nhc-console { flex: none; display: flex; align-items: stretch; gap: 11px; padding: 9px;
+  border-radius: 12px; background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid var(--dsw-alias-border-l1); }
+.nhc-console:focus-within { border-color: color-mix(in srgb, var(--dsw-alias-brand-primary) 55%, var(--dsw-alias-border-l1)); }
+.nhc-pad { display: grid; grid-template-columns: repeat(3, 28px); grid-auto-rows: 28px; gap: 3px; flex: none; }
+.nhc-k { font: inherit; font-size: 12px; display: grid; place-items: center; cursor: pointer;
+  border-radius: 7px; border: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-primary);
+  transition: transform .05s, background .1s, border-color .1s; }
+.nhc-k:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover);
+  border-color: var(--dsw-alias-border-l2); }
+.nhc-k:active:not(:disabled) { transform: scale(.94); }
+.nhc-k.mid { color: var(--dsw-alias-label-tertiary); font-size: 11px; }
+.nhc-k:disabled { opacity: .42; cursor: not-allowed; }
+.nhc-vsep { width: 1px; flex: none; background: var(--dsw-alias-border-l1); }
+.nhc-console-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.nhc-actrow { display: flex; flex-wrap: wrap; gap: 5px; }
+.nhc-act { font: inherit; font-size: 11.5px; display: inline-flex; align-items: center; gap: 6px;
+  height: 27px; padding: 0 9px 0 5px; border-radius: 7px; cursor: pointer; white-space: nowrap;
   border: 1px solid var(--dsw-alias-border-l1); background: var(--dsw-alias-bg-layer-2);
   color: var(--dsw-alias-label-primary); }
-.nhc-btn:hover:not(:disabled) { background: var(--dsw-alias-bg-overlay); border-color: var(--dsw-alias-border-l2); }
-.nhc-btn:disabled { opacity: .45; cursor: not-allowed; }
-/* The pack column: its own surface, matching the chat box beside it. */
-.nhc-pack { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0;
-  border-radius: 10px; overflow: hidden;
-  background: var(--dsw-alias-bg-layer-1);
+.nhc-act:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover);
+  border-color: var(--dsw-alias-border-l2); }
+.nhc-act:disabled { opacity: .42; cursor: not-allowed; }
+.nhc-act kbd { font: 700 10px ui-monospace, monospace; color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-interactive-bg-hover); border-radius: 4px; padding: 1px 5px; }
+.nhc-keyline { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.nhc-keyline input { flex: 1 1 120px; min-width: 0; height: 27px; padding: 0 9px;
+  border-radius: 7px; border: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary);
+  font: 12px ui-monospace, monospace; }
+.nhc-keyline input:focus { outline: none; border-color: var(--dsw-alias-brand-primary); }
+.nhc-cap { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; flex: none;
+  color: var(--dsw-alias-label-tertiary); }
+.nhc-cap i { width: 7px; height: 7px; border-radius: 50%; background: var(--dsw-alias-label-tertiary); }
+.nhc-captured .nhc-cap { color: var(--dsw-alias-state-success-primary); }
+.nhc-captured .nhc-cap i { background: var(--dsw-alias-state-success-primary); }
+.nhc-confirm { flex: none; padding: 7px 9px; border-radius: 9px;
   border: 1px solid var(--dsw-alias-border-l2); }
-.nhc-pack-head { flex: none; display: flex; align-items: center; gap: 6px;
-  padding: 8px 11px; font-size: 11px; font-weight: 600;
-  color: var(--dsw-alias-label-secondary);
-  text-transform: uppercase; letter-spacing: .05em;
+.nhc-confirm p { margin: 0 0 6px; font-size: 12px; }
+
+/* ---- right column: tabs over the conversation and the pack -------------- */
+.nhc-side { display: flex; flex-direction: column; min-width: 0;
+  border-left: 1px solid var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-layer-1); }
+.nhc-tabs { flex: none; display: flex; gap: 2px; padding: 6px 8px 0;
   border-bottom: 1px solid var(--dsw-alias-border-l1); }
-.nhc-pack-count { margin-left: auto; font-family: ui-monospace, monospace;
-  font-weight: 400; font-size: 10px; opacity: .75; letter-spacing: 0; }
-.nhc-pack-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 8px 11px 10px; }
-.nhc-pack-body .nhc-inv-item em { display: inline-block; width: 14px; flex: none;
-  font-family: ui-monospace, monospace; font-style: normal;
-  color: var(--dsw-alias-brand-primary); opacity: .9; }
-.nhc-pack-body .nhc-inv-item span { overflow-wrap: anywhere; }
-.nhc-pack-body .nhc-inv-head { margin-top: 7px; }
-.nhc-pack-body .nhc-inv-head:first-child { margin-top: 0; }
-
-/* The message ticker above the map: one line, opening in place to the history. */
-.nhc-ticker { flex: none; border-radius: 8px; overflow: hidden;
-  background: var(--dsw-alias-bg-layer-1);
-  border: 1px solid var(--dsw-alias-border-l1); }
-.nhc-ticker > summary { cursor: pointer; list-style: none; display: flex;
-  align-items: center; gap: 8px; padding: 6px 10px; font-size: 11.5px;
-  color: var(--dsw-alias-label-primary); }
-.nhc-ticker > summary::-webkit-details-marker { display: none; }
-.nhc-ticker > summary::before { content: "▸"; font-size: 9px; opacity: .65; flex: none; }
-.nhc-ticker[open] > summary::before { content: "▾"; }
-.nhc-ticker-text { flex: 1 1 auto; min-width: 0; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap; }
-.nhc-ticker-count { flex: none; font-family: ui-monospace, monospace; font-size: 10px;
-  color: var(--dsw-alias-label-secondary); opacity: .8; }
-.nhc-ticker-body { padding: 0 10px 8px 27px; border-top: 1px solid var(--dsw-alias-border-l1); }
-.nhc-ticker-body .nhc-msgs { max-height: 150px; margin-top: 7px; }
-.nhc-msg-latest { color: var(--dsw-alias-brand-primary); }
-
-.nhc-msgs { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px;
-  max-height: 190px; overflow: auto; }
-.nhc-msgs li { font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
-.nhc-msgs li:last-child { color: var(--dsw-alias-brand-primary); }
-/* Only the pack body scrolls (see .nhc-pack-body). The list inside it must never
-   be its own scroll container: two nested scrollers showed two scrollbars for a
-   single pack. */
-.nhc-inv { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
-.nhc-inv-item { font-size: 11px; line-height: 1.35; overflow-wrap: anywhere;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.nhc-inv-head { font-size: 10px; font-weight: 600; margin-top: 4px;
-  color: var(--dsw-alias-label-secondary); text-transform: uppercase; letter-spacing: .04em; }
-.nhc-inv-head:first-child { margin-top: 0; }
-.nhc-cond { font-size: 10px; padding: 2px 7px; border-radius: 999px;
-  background: var(--dsw-alias-bg-layer-2); border: 1px solid var(--dsw-alias-border-l1); }
-.nhc-prompt { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; flex: none;
-  border-radius: 8px; background: var(--dsw-alias-bg-layer-1);
-  border: 1px solid var(--dsw-alias-border-l2); padding: 9px; }
-.nhc-prompt > p { flex: 1 1 100%; margin: 0; font-size: 12px; color: var(--dsw-alias-label-secondary); }
-.nhc-prompt h3 { flex: 1 1 100%; margin: 0; font-size: 11px; font-weight: 600;
-  color: var(--dsw-alias-state-warn-primary); text-transform: uppercase; letter-spacing: .05em; }
-.nhc-input { font: inherit; font-size: 12px; flex: 1 1 96px; min-width: 0; padding: 5px 7px;
-  border-radius: 6px; border: 1px solid var(--dsw-alias-border-l1);
-  background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
-.nhc-opt { justify-content: flex-start; text-align: left; max-width: 100%; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap; }
-.nhc-notice { margin: 0; font-size: 11px; color: var(--dsw-alias-label-secondary); }
-.nhc-err { margin: 0; font-size: 11px; color: var(--dsw-alias-state-error-primary); }
-/* The game's conversation is the SHIPPED Conversation content, so this panel
-   styles only its seat: the content brings its own transcript, composer and
-   scrolling. The seat must be a flex column with a real height or the embedded
-   content collapses to nothing (its own root is height:100%). */
+.nhc-tab { font: inherit; font-size: 11.5px; font-weight: 500; display: flex; align-items: center; gap: 6px;
+  padding: 7px 9px 8px; cursor: pointer; border: 0; background: none;
+  color: var(--dsw-alias-label-secondary); border-bottom: 2px solid transparent; }
+.nhc-tab[aria-selected="true"] { color: var(--dsw-alias-label-primary); border-bottom-color: var(--dsw-alias-brand-primary); }
+.nhc-tab:hover { color: var(--dsw-alias-label-primary); }
+.nhc-tab .nhc-n { font: 10px ui-monospace, monospace; padding: 0 5px; border-radius: 99px;
+  background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); }
+.nhc-pane { flex: 1 1 auto; min-height: 0; display: none; flex-direction: column; }
+.nhc-pane.on { display: flex; }
 .nhc-chat { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
   height: 100%; overflow: hidden; }
 .nhc-chat > * { min-height: 0; flex: 1 1 auto; }
@@ -337,7 +433,42 @@ html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="ma
 .nhc-chat [data-composer-seat] { margin-top: auto; flex: 0 0 auto; }
 .nhc-transcript-seat { flex: 1 0 auto; min-height: 0; display: flex; flex-direction: column; }
 .nhc-chat-blank { display: flex; flex-direction: column; justify-content: center;
-  align-items: center; flex: 1 1 auto; min-height: 0; padding: 12px; text-align: center; }
+  align-items: center; flex: 1 1 auto; min-height: 0; padding: 14px; text-align: center; }
+.nhc-pack { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.nhc-pack-head { flex: none; display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; font-size: 10px; font-weight: 600; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--dsw-alias-label-secondary);
+  border-bottom: 1px solid var(--dsw-alias-border-l1); }
+.nhc-pack-count { margin-left: auto; font: 400 10px ui-monospace, monospace;
+  letter-spacing: 0; opacity: .75; }
+/* Exactly one element scrolls here: the pack body. The pack itself clips, so a
+   long pack never shows two nested scrollbars. */
+.nhc-pack-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 6px 8px 12px; }
+.nhc-inv { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.nhc-inv-head { margin: 9px 6px 3px; font-size: 9.5px; font-weight: 600; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--dsw-alias-label-tertiary); }
+.nhc-inv-head:first-child { margin-top: 3px; }
+.nhc-inv-item { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px;
+  align-items: center; padding: 4px 6px; border-radius: 7px; }
+.nhc-inv-item:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.nhc-inv-item em { width: 22px; height: 22px; display: grid; place-items: center;
+  border-radius: 6px; font: 700 10.5px ui-monospace, monospace; font-style: normal;
+  color: var(--dsw-alias-brand-primary); background: var(--dsw-alias-interactive-bg-hover); }
+.nhc-inv-item span { font-size: 11.5px; line-height: 1.35; overflow-wrap: anywhere; }
+.nhc-log { flex: 1; min-height: 0; overflow: auto; margin: 0; padding: 10px 12px;
+  list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.nhc-log li { font-size: 11.5px; line-height: 1.4; color: var(--dsw-alias-label-secondary);
+  overflow-wrap: anywhere; }
+.nhc-log li:first-child { color: var(--dsw-alias-label-primary); }
+.nhc-notice { margin: 0; font-size: 11.5px; color: var(--dsw-alias-label-secondary); }
+.nhc-err { margin: 0; font-size: 11.5px; color: var(--dsw-alias-state-error-primary); }
+/* A short panel cannot give the stage and the console both their minimums; the
+   game column scrolls instead of hiding the composer-sized console. */
+@media (max-height: 520px) {
+  .nhc-play { overflow: auto; }
+  .nhc-stage { min-height: 150px; }
+}
 `;
 
     /** Re-render on locale change without depending on a specific React version. */
@@ -449,10 +580,16 @@ html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="ma
       return label;
     }
 
-    /** Draw the tile set as coloured monospace rows. */
-    function renderMap(tiles, t, fontPx) {
+    /**
+     * Draw the tile set as coloured monospace rows.
+     *
+     * The pet is drawn apart from other monsters: it is friendly, follows the
+     * player and only `observe`'s neighbour line says which glyph it is, so the
+     * panel passes that glyph down instead of colouring every `d` as hostile.
+     */
+    function renderMap(tiles, t, fontPx, petGlyph) {
       if (!Array.isArray(tiles) || tiles.length === 0) {
-        return h("div", { className: "nhc-mapgrid", style: { fontSize: "11px" } }, t("emptyMap"));
+        return h("div", { className: "nhc-map", style: { fontSize: "11px" } }, t("emptyMap"));
       }
       const xs = tiles.map((tile) => tile.x);
       const ys = tiles.map((tile) => tile.y);
@@ -463,15 +600,17 @@ html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="ma
       for (let y = minY; y <= maxY; y++) {
         const cells = [];
         for (let x = minX; x <= maxX; x++) {
-          const tile = at.get(`${x},${y}`);
-          const glyph = tile?.text;
+          const glyph = at.get(`${x},${y}`)?.text;
           if (!glyph || glyph === " ") { cells.push(" "); continue; }
-          const kind = GLYPH_CLASS[glyph] ?? (MONSTER_LETTER.test(glyph) ? "monster" : "other");
+          let kind = GLYPH_CLASS[glyph] ?? (MONSTER_LETTER.test(glyph) ? "monster" : "other");
+          // Only letters can be creatures, so the pet glyph never recolours
+          // terrain or items that happen to share it ('.' is floor, not code).
+          if (petGlyph && glyph === petGlyph && MONSTER_LETTER.test(glyph)) kind = "pet";
           cells.push(h("span", { key: x, className: `nhc-g ${kind}` }, glyph));
         }
         rows.push(h("div", { key: y }, cells));
       }
-      return h("div", { className: "nhc-mapgrid", style: { fontSize: `${fontPx}px` } }, rows);
+      return h("div", { className: "nhc-map", style: { fontSize: `${fontPx}px` } }, rows);
     }
 
     /**
@@ -479,105 +618,222 @@ html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="ma
      * flow control: these only draw what the state route already returned.
      */
 
-    /** HP, AC and the quiet status facts, with a refresh button. */
+    /** Numeric status, tolerant of the engine's strings. */
+    function numberOf(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    /**
+     * The HUD: who and where, HP and Pw as bars, the quiet facts, conditions.
+     *
+     * The status used to be a row of bare numbers under the map. Bars answer the
+     * one question the person actually has while watching the game ("am I about
+     * to die?"), so HP and Pw get width; gold, turn and strength stay as plain
+     * figures because they are read, not compared.
+     */
     function StatusBar(props) {
-      const { t, state, onRefresh } = props;
+      const { t, state, onRefresh, onRestart } = props;
       const status = state?.status ?? {};
       const conditions = Array.isArray(state?.conditions) ? state.conditions : [];
+      const hp = numberOf(status.BL_HP);
+      const hpMax = numberOf(status.BL_HPMAX);
+      const pw = numberOf(status.BL_PW);
+      const pwMax = numberOf(status.BL_PWMAX);
+      const gold = numberOf(status.BL_GOLD);
+      const ac = numberOf(status.BL_AC);
+      const str = status.BL_STR ? String(status.BL_STR) : null;
+      const level = status.BL_LEVEL ? String(status.BL_LEVEL) : null;
+      const depth = status.BL_LEVELDESC ? String(status.BL_LEVELDESC) : null;
+      const where = [level ? `${t("lvl")} ${level}` : null, depth].filter(Boolean).join(" · ");
+      const hpRatio = hp !== null && hpMax ? hp / hpMax : null;
+      const hpTone = hpRatio === null ? "" : hpRatio <= 0.25 ? " low" : hpRatio <= 0.5 ? " mid" : "";
+      const pwRatio = pw !== null && pwMax ? pw / pwMax : null;
       const facts = [
-        ["HP", status.BL_HP ? `${status.BL_HP}${status.BL_HPMAX ? `/${status.BL_HPMAX}` : ""}` : null],
-        [t("ac"), status.BL_AC ?? null],
-        [t("gold"), status.BL_GOLD ?? null],
-        [t("turn"), state?.turn ?? null],
+        [t("ac"), ac], [t("gold"), gold], [t("turn"), numberOf(state?.turn)], [t("str"), str],
       ].filter(([, value]) => value !== null && value !== undefined && value !== "");
-      return h("div", { className: "nhc-bar" },
-        ...facts.map(([key, value]) =>
-          h("div", { className: `nhc-fact${key === "HP" || key === t("ac") ? " nhc-fact-key" : ""}`, key },
-            h("b", null, String(value)),
-            h("span", null, key),
-          )),
-        conditions.length
-          ? h("div", { className: "nhc-conds" },
-              ...conditions.map((text) => h("span", { className: "nhc-cond", key: text }, text)))
+      const critical = /confus|stun|blind|hallu|overload|burden|slow|恶|混乱|致盲/i.test(conditions.join(" "));
+      return h("header", { className: "nhc-hud" },
+        h("div", { className: "nhc-who" },
+          h("i", { className: "nhc-avatar", "aria-hidden": true }, "@"),
+          h("div", null,
+            h("b", null, status.BL_TITLE || t("panel")),
+            where ? h("span", null, where) : null)),
+        hp !== null || pw !== null
+          ? h("div", { className: "nhc-bars" },
+              hp !== null
+                ? h("div", { className: `nhc-bar hp${hpTone}`, title: `${t("hp")} ${hp}${hpMax ? `/${hpMax}` : ""}` },
+                    h("span", null, "HP"),
+                    h("div", { className: "nhc-bar-track" },
+                      h("div", { className: "nhc-bar-fill", style: { width: `${Math.round((hpRatio ?? 1) * 100)}%` } })),
+                    h("em", null, hpMax ? `${hp}/${hpMax}` : String(hp)))
+                : null,
+              pw !== null && pwMax
+                ? h("div", { className: "nhc-bar pw", title: `${t("pw")} ${pw}/${pwMax}` },
+                    h("span", null, "Pw"),
+                    h("div", { className: "nhc-bar-track" },
+                      h("div", { className: "nhc-bar-fill", style: { width: `${Math.round((pwRatio ?? 0) * 100)}%` } })),
+                    h("em", null, `${pw}/${pwMax}`))
+                : null)
           : null,
-        h("button", {
-          type: "button", className: "nhc-btn", title: t("refresh"), "aria-label": t("refresh"),
-          onClick: onRefresh,
-        }, "↻"),
+        facts.length
+          ? h("div", { className: "nhc-stats" },
+              ...facts.map(([key, value], index) => h("div", {
+                className: `nhc-stat${index > 0 && key === t("turn") ? " nhc-stat-extra" : ""}`, key,
+              },
+                h("b", null, String(value)),
+                h("span", null, key))))
+          : null,
+        h("div", { className: "nhc-conds", "aria-label": t("status") },
+          conditions.map((text) => h("span", {
+            className: `nhc-cond${critical ? " bad" : ""}`, key: text,
+          }, text))),
+        h("div", { className: "nhc-hud-actions" },
+          // New game lives in the HUD so a finished or stuck game has an obvious
+          // way out; the confirmation still lives in the console below.
+          typeof onRestart === "function"
+            ? h("button", { type: "button", className: "nhc-ib", title: t("restart"), "aria-label": t("restart"), onClick: onRestart }, "⟲")
+            : null,
+          h("button", {
+            type: "button", className: "nhc-ib", title: t("refresh"), "aria-label": t("refresh"),
+            onClick: onRefresh,
+          }, "↻")),
       );
     }
 
+    /** The map key, opened from the stage's "?" corner. */
+    function MapLegend(props) {
+      const { t } = props;
+      const rows = [
+        ["@", "legendHero"], ["d", "legendPet"], ["d", "legendMonster"],
+        [".", "legendFloor"], ["#", "legendCorridor"], ["|", "legendWall"],
+        ["+", "legendDoor"], [">", "legendStairs"], ["^", "legendTrap"],
+        ["%", "legendItem"], ["░", "legendBlind"],
+      ];
+      return h("div", { className: "nhc-legend", role: "note", "aria-label": t("legend") },
+        ...rows.flatMap(([glyph, key]) => [
+          h("code", { key: `${key}-g`, className: `nhc-g ${GLYPH_CLASS[glyph] ?? "other"}` }, glyph),
+          h("span", { key: `${key}-t` }, t(key)),
+        ]));
+    }
+
     /**
-     * The map, fitted to the space it is given.
+     * The stage: the map, the engine's last lines over it, the question raised
+     * over it, and the position/legend corners.
      *
      * Both axes are measured: sizing by width alone overflowed the column in a
-     * short window and scrolled the map instead of shrinking it.
+     * short window and scrolled the map instead of shrinking it. The overlay and
+     * the question are absolutely positioned so neither changes the map's height
+     * when a message arrives or a prompt appears.
      */
     function MapView(props) {
-      const { t, map, player } = props;
+      const { t, map, player, messages, petGlyph, onMessages, question, reply, setReply, busy, onAnswer } = props;
       const [ref, size] = useElementSize();
+      const [legend, setLegend] = React.useState(false);
       const tiles = Array.isArray(map) ? map : [];
-      if (!tiles.length) {
-        // Same card and same class as the drawn map, so the panel's structure
-        // does not change shape the moment the first tiles arrive.
-        return h("div", { className: "nhc-card" },
-          h("div", { className: "nhc-map", ref },
-            h("p", { className: "nhc-notice" }, t("emptyMap"))),
-        );
-      }
       const bounds = mapBounds(tiles);
-      const fontPx = fitFontSize(size.width - 20, bounds.cols, size.height - 20, bounds.rows);
-      return h("div", { className: "nhc-card" },
-        h("div", { className: "nhc-map", ref },
-          renderMap(tiles, t, fontPx),
-          player ? h("div", { className: "nhc-notice" }, `@ ${player.x},${player.y}`) : null,
-        ),
+      const fontPx = fitFontSize(size.width - 20, bounds.cols, size.height - 58, bounds.rows);
+      const lines = Array.isArray(messages) ? messages.slice(-3) : [];
+      const depth = props.depth ? String(props.depth) : "";
+      const where = player
+        ? `${depth ? `${depth} · ` : ""}@ ${player.x},${player.y}`
+        : depth;
+      return h("div", { className: "nhc-stage", ref },
+        lines.length
+          ? h("div", { className: "nhc-overlay" },
+              h("div", { className: "nhc-overlay-log" },
+                ...lines.map((text, index) => h("p", { key: `${index}-${text}`, title: text }, text))),
+              h("button", { type: "button", className: "nhc-overlay-btn", onClick: onMessages },
+                `${t("seeAllMessages")} · ${messages.length}`))
+          : null,
+        tiles.length
+          ? renderMap(tiles, t, fontPx, petGlyph)
+          : h("p", { className: "nhc-blank" }, t("emptyMap")),
+        where ? h("div", { className: "nhc-where" }, where) : null,
+        h("button", {
+          type: "button", className: "nhc-ib nhc-legend-btn", title: t("legendBtn"),
+          "aria-label": t("legendBtn"), "aria-expanded": legend,
+          onClick: () => setLegend((open) => !open),
+        }, "?"),
+        legend ? h(MapLegend, { t }) : null,
+        question
+          ? h(AskBar, { t, question, reply, setReply, busy, onAnswer })
+          : null,
       );
     }
 
     /**
-     * Whatever the engine is asking, as one prompt strip.
+     * Whatever the engine is asking, raised over the map.
      *
-     * Only shown when a question is pending; at the command prompt the pad below
-     * is the input device and this strip stays out of the way.
+     * Menu rows become buttons carrying their OWN accelerator, so a person can
+     * answer without knowing which letter the engine accepts. The text field
+     * stays for everything that cannot be listed (a line prompt, a direction
+     * key, a name).
      */
     function AskBar(props) {
       const { t, question, reply, setReply, busy, onAnswer } = props;
       const options = menuOptions(question);
+      const waiting = question.waiting_for;
       const key = (event) => {
         if (event.key !== "Enter") return;
         event.preventDefault();
         onAnswer();
       };
-      return h("div", { className: "nhc-prompt" },
-        h("h3", null, t("asking")),
+      // A free-text field only makes sense where the answer is typed: a line
+      // prompt, a menu with no selectable row, or a "key" prompt. --More--,
+      // directions and yes/no are answered by a button or the pad, so showing a
+      // text box there just adds a wrong way to answer.
+      // A yes/no question keeps the field because the engine also accepts a
+      // word here, and a wrong guess is cheaper to type than to discover.
+      const wantsText = waiting === "line" || waiting === "key" || waiting === "yn"
+        || (waiting !== "more" && waiting !== "direction" && options.length === 0);
+      const shortcuts = waiting === "more"
+        ? [{ key: " ", label: t("continueAction") }]
+        : waiting === "yn"
+          ? [{ key: "y", label: "y" }, { key: "n", label: "n" }]
+          : [];
+      return h("div", { className: "nhc-ask", role: "group", "aria-label": t("asking") },
+        h("h4", null, t("asking"), h("span", null, t("escapeAction"))),
         h("p", null, promptText(question, t)),
-        h("input", {
-          className: "nhc-input",
-          value: reply,
-          placeholder: t("reply"),
-          disabled: busy,
-          spellCheck: false,
-          onChange: (event) => setReply(event.target.value),
-          onKeyDown: key,
-        }),
-        h("button", { type: "button", className: "nhc-btn", onClick: onAnswer, disabled: busy }, t("answer"))
-        ,
-        ...options.slice(0, 9).map((option) =>
-          h("button", {
-            key: option.key, type: "button", className: "nhc-btn nhc-opt",
-            disabled: busy,
-            onClick: () => setReply(option.key),
-          }, `${option.key} ${option.label}`)),
+        shortcuts.length || options.length
+          ? h("div", { className: "nhc-opts" },
+              ...shortcuts.map((option) => h("button", {
+                key: option.key, type: "button", className: "nhc-opt", disabled: busy,
+                onClick: () => onAnswer(option.key),
+              }, h("kbd", null, option.key === " " ? "␣" : option.key), h("span", { className: "nhc-opt-label" }, option.label))),
+              ...options.slice(0, 12).map((option) => h("button", {
+                key: option.key, type: "button", className: "nhc-opt", disabled: busy,
+                title: option.label, onClick: () => onAnswer(option.key),
+              }, h("kbd", null, option.key), h("span", { className: "nhc-opt-label" }, option.label))))
+          : null,
+        wantsText
+          ? h("form", {
+              className: "nhc-askform",
+              onSubmit: (event) => { event.preventDefault(); onAnswer(); },
+            },
+              h("input", {
+                className: "nhc-input", value: reply, placeholder: t("reply"),
+                disabled: busy, spellCheck: false,
+                onChange: (event) => setReply(event.target.value), onKeyDown: key,
+              }),
+              h("button", { type: "submit", className: "nhc-btn", disabled: busy }, t("answer")))
+          : null,
       );
     }
 
-    /** The pack column beside the conversation. */
-    function Inventory(props) {
-      const { t, items, gold } = props;
-      return h(PackPanel, { t, state: { inventory: items, status: { BL_GOLD: gold } } });
-    }
-
+    /** The game's conversation: a real DSH session, rendered by DSH's own chat.
+     *
+     * The panel used to draw its own transcript and post to a private Host route
+     * that ran a private tool loop. That meant two chat implementations and every
+     * harness feature -- streaming, stop, the model picker, compaction,
+     * persistence -- built twice. Now the panel creates an ordinary session with
+     * the `nethack` agent preset, tells the Host to attach the game's tools to
+     * it, and binds the shipped Conversation to that session. This component
+     * only decides WHICH session that is and waits for it to be ready.
+     *
+     * A new game (`nethack_restart` mints a new game id) gets a new session, so
+     * one game's transcript never continues into the next.
+     */
     /**
      * The game's conversation: a real DSH session, rendered by DSH's own chat.
      *
@@ -715,6 +971,106 @@ html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="ma
     }
 
     /**
+     * The console: the one always-visible manual control surface.
+     *
+     * The old manual was a bordered box in a side column, with the direction pad
+     * and the action buttons stacked under it. Here it is one strip under the
+     * stage: pad, then the verbs, then the free-key field, so a hand-play turn is
+     * "click, click" without hunting through a panel. Keys are only captured
+     * while this strip has focus (its own onKeyDown), so typing into the chat
+     * composer beside it is never eaten.
+     */
+    function GameControls({ t, state, busy, send }) {
+      const [reply, setReply] = React.useState("");
+      // Whether this strip has the keyboard. Only while focused does the pad
+      // answer arrow keys, so the chat composer beside it keeps working; the
+      // label says which mode the person is in instead of leaving them to guess
+      // why the arrows sometimes walk and sometimes type.
+      const [focused, setFocused] = React.useState(false);
+      const command = state?.waiting_for === "command";
+      const ended = !!state?.ended;
+      const locked = busy || ended;
+      const input = key => send(command ? { action: "raw_keys", keys: key } : { kind: "respond", reply: key });
+      // The verbs are keystrokes, so they need the command prompt; the pad and
+      // the free-key field work anywhere, because they answer whatever prompt
+      // the engine is on (a direction question takes 8/2/4/6 too).
+      const act = (label, glyph, key, enabled) => h("button", {
+        key: label, type: "button", className: "nhc-act", disabled: locked || !enabled,
+        onClick: () => send({ action: key }),
+      }, h("kbd", null, glyph), t(label));
+      const dirs = [["↖", "7"], ["↑", "8"], ["↗", "9"], ["←", "4"], ["·", "."], ["→", "6"], ["↙", "1"], ["↓", "2"], ["↘", "3"]];
+      return h("div", {
+        className: `nhc-console${focused ? " nhc-captured" : ""}`, tabIndex: 0,
+        role: "group", "aria-label": t("keys"),
+        onFocus: () => setFocused(true),
+        onBlur: () => setFocused(false),
+        onKeyDown: event => {
+          if (locked || /^(INPUT|TEXTAREA|BUTTON)$/.test(event.target?.tagName) || event.target?.isContentEditable
+            || event.ctrlKey || event.metaKey || event.altKey) return;
+          const mapped = { ArrowUp: "8", ArrowDown: "2", ArrowLeft: "4", ArrowRight: "6", Escape: "\u001b", Enter: "\n" };
+          const key = mapped[event.key] ?? (event.key?.length === 1 ? event.key : null);
+          if (key !== null) { event.preventDefault(); input(key); }
+        },
+      },
+        h("div", { className: "nhc-pad" },
+          ...dirs.map(([label, key]) => h("button", {
+            key, type: "button", className: `nhc-k${key === "." ? " mid" : ""}`,
+            disabled: locked, "aria-label": `${label} (${key})`, title: key,
+            onClick: () => input(key),
+          }, label))),
+        h("div", { className: "nhc-vsep" }),
+        h("div", { className: "nhc-console-main" },
+          h("div", { className: "nhc-actrow" },
+            h("button", {
+              key: "wait", type: "button", className: "nhc-act", disabled: locked || !command,
+              onClick: () => send({ action: "wait" }),
+            }, h("kbd", null, "."), t("waitAction")),
+            act("actSearch", "s", "search", command),
+            act("actPickup", ",", "pickup", command),
+            act("actOpen", "o", "open", command),
+            act("actDescend", ">", "descend", command),
+            act("actAscend", "<", "ascend", command)),
+          h("div", { className: "nhc-keyline" },
+            h("form", {
+              key: "freekey",
+              onSubmit: event => {
+                event.preventDefault();
+                const answer = String(reply ?? "").trim();
+                if (!locked && answer) { input(answer); setReply(""); }
+              },
+            },
+              h("input", {
+                type: "text", value: reply, "aria-label": t("keyReply"), placeholder: t("keyReply"),
+                disabled: locked, spellCheck: false, autoComplete: "off",
+                onChange: event => setReply(event.target.value),
+              })),
+            h("button", {
+              key: "space", type: "button", className: "nhc-act", disabled: locked,
+              onClick: () => input(" "),
+            }, h("kbd", null, "␣"), t("continueAction")),
+            h("button", {
+              key: "enter", type: "button", className: "nhc-act", disabled: locked,
+              onClick: () => input("\n"),
+            }, h("kbd", null, "⏎"), t("enterAction")),
+            h("button", {
+              key: "esc", type: "button", className: "nhc-act", disabled: locked,
+              onClick: () => input("\u001b"),
+            }, h("kbd", null, "Esc"), t("escapeAction")),
+            h("span", { key: "cap", className: "nhc-cap", title: t("manualHint") },
+              h("i", { "aria-hidden": true }), focused ? t("captured") : t("notCaptured")))),
+      );
+    }
+
+    /** One sidebar tab button, shared by all three panes. */
+    function TabButton(props) {
+      const { id, active, onSelect, children } = props;
+      return h("button", {
+        type: "button", className: "nhc-tab", role: "tab",
+        "aria-selected": active, onClick: () => onSelect(id),
+      }, children);
+    }
+
+    /**
      * The panel body, rendered by a `session` child slot.
      *
      * The panel shows a conversation, and DSH's Conversation reads the session
@@ -722,59 +1078,19 @@ html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="ma
      * registered inside `PANEL_SLOT` (a `session` child of `main` /
      * `sidebar.right.pane.tab`) and receives the slot system's `SessionProvider`.
      *
-     * Below the map it renders the GAME's session, not the current one: the panel
-     * creates an ordinary DSH session with the `nethack` agent preset, tells the
-     * Host to attach the game's tools to it, and then binds `SessionProvider` to
-     * that session. Everything the harness already has then applies to the game
-     * for free -- streaming, stop, the model picker, compaction, persistence --
-     * instead of a second chat implementation living in this file.
+     * The layout is two columns: the game (HUD, stage, console) on the left and
+     * the GAME's conversation on the right, with the pack and the message log as
+     * sibling tabs there. That conversation is an ordinary DSH session with the
+     * `nethack` agent preset: the panel tells the Host to attach the game tools
+     * to it and binds `SessionProvider` to that session, so streaming, stop, the
+     * model picker, compaction and persistence all apply with no second chat
+     * implementation living in this file.
      *
      * Isolation is enforced by the Host, not here: the three nethack_* tools are
      * registered into that session's agent scope only and the agent is
      * restricted to them, so the person's own conversation never sees the game
      * tools and this session cannot reach the workspace.
      */
-    function GameControls({ t, state, busy, send }) {
-      const [confirming, setConfirming] = React.useState(false);
-      const [reply, setReply] = React.useState("");
-      const command = state?.waiting_for === "command";
-      const input = key => send(command ? { action: "raw_keys", keys: key } : { kind: "respond", reply: key });
-      const button = (label, onClick, disabled = busy) => h("button", { type: "button", className: "nhc-btn", disabled, onClick }, label);
-      const dirs = [["↖", "7"], ["↑", "8"], ["↗", "9"], ["←", "4"], ["·", "."], ["→", "6"], ["↙", "1"], ["↓", "2"], ["↘", "3"]];
-      return h("div", { className: "nhc-controls" },
-        confirming ? h("div", { className: "nhc-confirm", role: "alert" },
-          h("p", null, t("restartConfirm")),
-          h("div", { className: "nhc-control-buttons" },
-            button(t("confirmRestart"), async () => { await send({ action: "restart" }); setConfirming(false); }),
-            button(t("cancel"), () => setConfirming(false)))) : null,
-        h("div", {
-          className: "nhc-manual", tabIndex: 0, role: "group", "aria-label": t("keys"),
-          onKeyDown: event => {
-            if (busy || /^(INPUT|TEXTAREA|BUTTON)$/.test(event.target?.tagName) || event.target?.isContentEditable
-              || event.ctrlKey || event.metaKey || event.altKey) return;
-            const mapped = { ArrowUp: "8", ArrowDown: "2", ArrowLeft: "4", ArrowRight: "6", Escape: "\u001b", Enter: "\n" };
-            const key = mapped[event.key] ?? (event.key?.length === 1 ? event.key : null);
-            if (key !== null) { event.preventDefault(); input(key); }
-          },
-        },
-          h("p", { className: "nhc-notice" }, t("manualHint")),
-          h("div", { className: "nhc-keygrid" }, dirs.map(([label, key]) => h("button", {
-            key, type: "button", className: "nhc-btn", disabled: busy || !!state?.ended,
-            "aria-label": `${label} (${key})`, onClick: () => input(key),
-          }, label))),
-          h("div", { className: "nhc-control-buttons" },
-            ...[["waitAction", "wait"], ["pickupAction", "pickup"], ["searchAction", "search"], ["openAction", "open"],
-              ["descendAction", "descend"], ["ascendAction", "ascend"]].map(([label, action]) =>
-              button(t(label), () => send({ action }), busy || !command || !!state?.ended)),
-            button(t("continueAction"), () => input(" ")), button(t("enterAction"), () => input("\n")), button(t("escapeAction"), () => input("\u001b"))),
-          h("form", { className: "nhc-keyreply", onSubmit: event => { event.preventDefault(); if (!busy && reply) { input(reply); setReply(""); } } },
-            h("input", { value: reply, "aria-label": t("keyReply"), placeholder: t("keyReply"), disabled: busy,
-              onChange: event => setReply(event.target.value) }),
-            h("button", { type: "submit", className: "nhc-btn", disabled: busy || !reply }, t("sendKey")))),
-        h("div", { className: "nhc-control-buttons" },
-          button(t("restart"), () => setConfirming(value => !value))),
-      );
-    }
     function NetHackPanel(props) {
       const t = props.t;
       useLocaleRevision(props.subscribeLocale);
@@ -793,6 +1109,8 @@ html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="ma
       const [reply, setReply] = React.useState("");
       const [busy, setBusy] = React.useState(false);
       const [error, setError] = React.useState(null);
+      const [tab, setTab] = React.useState("chat");
+      const [confirming, setConfirming] = React.useState(false);
       const alive = React.useRef(true);
 
       const load = React.useCallback(async () => {
@@ -863,6 +1181,11 @@ html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="ma
         }
       }, []);
 
+      const restart = React.useCallback(async () => {
+        setConfirming(false);
+        await send({ action: "restart" });
+      }, [send]);
+
       // Rendered in every branch: talking to the model is useful even while the
       // engine is still starting or momentarily unreachable. The game id is what
       // separates one game's conversation from the next (`nethack_restart` mints
@@ -876,72 +1199,146 @@ html[data-platform="darwin"]:not([data-fullscreen]) .nhc-root[data-placement="ma
         renderSlot: props.renderSlot,
       });
 
-      const controls = h(GameControls, { t, state, busy, send });
-      const side = h("div", { className: "nhc-side" },
-        h(Inventory, { t, items: state?.inventory, gold: state?.status?.BL_GOLD }), controls);
+      const messages = recentMessages(state);
+      const question = state && !state.ended && state.waiting_for !== "command" && state.waiting_for !== "ended"
+        ? state : null;
 
-      if (!state) {
-        return h("div", { className: "nhc-root", "data-placement": props.placement },
-          h("div", { className: "nhc-canvas" },
-            h("p", { className: "nhc-notice" },
-              error ? `${t("unreachable")}: ${error}` : t("loading")),
-          ),
-          h("div", { className: "nhc-dock" }, side, h("div", { className: "nhc-main" }, chat)),
-        );
-      }
-
-      if (state.ended) {
-        return h("div", { className: "nhc-root", "data-placement": props.placement },
-          h("div", { className: "nhc-canvas" },
-            h("p", { className: "nhc-notice" }, t("ended")),
-          ),
-          h("div", { className: "nhc-dock" }, side, h("div", { className: "nhc-main" }, chat)),
-        );
-      }
-
-      const question = state.waiting_for !== "command" && state.waiting_for !== "ended" ? state : null;
-
-      return h("div", { className: "nhc-root", "data-placement": props.placement },
-        h("div", { className: "nhc-canvas" },
-          h(MessageTicker, { state, t }),
-          h(StatusBar, { t, state, map: state.map, onRefresh: load }),
-          h(MapView, { t, map: state.tiles, player: state.player }),
-          question ? h(AskBar, { t, question, reply, setReply, busy, onAnswer: () => send({ kind: "respond", reply }) }) : null,
-          error ? h("p", { className: "nhc-err" }, error) : null,
-        ),
-        h("div", { className: "nhc-dock" },
-          side,
-          h("div", { className: "nhc-main" }, chat),
-        ),
+      // The side column: the conversation, the pack and the log, one at a time.
+      // `aria-controls`/`role` are advisory only -- the panes are plain divs --
+      // but they make the switching findable by a screen reader.
+      const side = h("aside", { className: "nhc-side" },
+        h("div", { className: "nhc-tabs", role: "tablist" },
+          h(TabButton, { id: "chat", active: tab === "chat", onSelect: setTab }, t("tabChat")),
+          h(TabButton, { id: "pack", active: tab === "pack", onSelect: setTab },
+            t("tabPack"),
+            Array.isArray(state?.inventory) && state.inventory.length
+              ? h("span", { className: "nhc-n" }, String(state.inventory.filter((item) => !item.header).length))
+              : null),
+          h(TabButton, { id: "log", active: tab === "log", onSelect: setTab },
+            t("tabLog"),
+            messages.length ? h("span", { className: "nhc-n" }, String(state?.messages?.length ?? messages.length)) : null)),
+        h("div", { className: `nhc-pane${tab === "chat" ? " on" : ""}`, role: "tabpanel", "data-pane": "chat" }, chat),
+        tab === "pack"
+          ? h("div", { className: "nhc-pane on", role: "tabpanel", "data-pane": "pack" },
+              h(PackPanel, { t, state }))
+          : null,
+        tab === "log"
+          ? h("div", { className: "nhc-pane on", role: "tabpanel", "data-pane": "log" },
+              h(MessageLog, { t, messages }))
+          : null,
       );
+
+      const stage = state && !state.ended
+        ? h(MapView, {
+            t,
+            map: state.tiles,
+            player: state.player,
+            messages,
+            petGlyph: petGlyphOf(state),
+            depth: state.status?.BL_LEVELDESC,
+            onMessages: () => setTab("log"),
+            question,
+            reply,
+            setReply,
+            busy,
+            onAnswer: (answer) => send({ kind: "respond", reply: answer ?? reply }),
+          })
+        : h("div", { className: "nhc-stage" },
+            h("p", { className: "nhc-blank" },
+              !state
+                ? (error ? `${t("unreachable")}: ${error}` : t("loading"))
+                : t("gameOver")));
+
+      const body = h("div", {
+        className: "nhc-body", "data-placement": props.placement,
+      },
+        state && !state.ended
+          ? h(StatusBar, { t, state, onRefresh: load, onRestart: () => setConfirming(true) })
+          : h("header", { className: "nhc-hud" },
+              h("div", { className: "nhc-who" },
+                h("i", { className: "nhc-avatar", "aria-hidden": true }, "@"),
+                h("div", null,
+                  h("b", null, t("panel")),
+                  h("span", null, !state
+                    ? (error ? t("unreachable") : t("loading"))
+                    : t("gameOver")))),
+              h("div", { className: "nhc-hud-actions" },
+                h("button", {
+                  type: "button", className: "nhc-ib", title: t("refresh"),
+                  "aria-label": t("refresh"), onClick: load,
+                }, "↻"),
+                state
+                  ? h("button", {
+                      type: "button", className: "nhc-ib", title: t("restart"),
+                      "aria-label": t("restart"), onClick: () => setConfirming(true),
+                    }, "⟲")
+                  : null)),
+        h("main", { className: "nhc-play" },
+          // Asked in the game column, right under the HUD that triggered it.
+          confirming
+            ? h("div", { className: "nhc-confirm", role: "alert" },
+                h("p", null, t("restartConfirm")),
+                h("div", { className: "nhc-actrow" },
+                  h("button", { type: "button", className: "nhc-btn", onClick: restart }, t("confirmRestart")),
+                  h("button", { type: "button", className: "nhc-btn", onClick: () => setConfirming(false) }, t("cancel"))))
+            : null,
+          stage,
+          error && state ? h("p", { className: "nhc-err" }, error) : null,
+          h(GameControls, { t, state, busy, send })),
+        side,
+      );
+
+      return h("div", { className: "nhc-root", "data-placement": props.placement }, body);
     }
 
     /**
-     * The engine's message line as a ticker: newest line, always visible.
+     * The neighbouring pet, read from the map.
      *
-     * A `details` gives the "one line, click to expand" behaviour without any
-     * state: closed it shows the single latest message, open it lists the recent
-     * history. Kept as its own component so the panel body stays readable, and so
-     * the collapsed state is local to it (a poll every 700 ms must not reset it).
+     * A `d` you own and a `d` that wants to eat you look identical on the map,
+     * so colouring every letter red would call the follower an enemy. The tiles
+     * carry no pet flag -- `observe`'s neighbour prose does, but this panel only
+     * receives the state route's tiles -- so this is the honest heuristic: a
+     * letter next to the `@` that is one of the starting pets (dog, cat, pony,
+     * and the grown forms they become). The legend says "your pet" for a
+     * lettered glyph rather than the map claiming a certainty it lacks.
      */
-    function MessageTicker(props) {
-      const { state, t } = props;
-      const lines = Array.isArray(state?.messages) ? state.messages : [];
-      const latest = lines[lines.length - 1] ?? "";
-      if (!latest) return null;
-      return h("details", { className: "nhc-ticker" },
-        h("summary", { title: latest },
-          h("span", { className: "nhc-ticker-text" }, latest),
-          lines.length > 1
-            ? h("span", { className: "nhc-ticker-count" }, String(lines.length))
-            : null,
-        ),
-        h("div", { className: "nhc-ticker-body" },
-          h("ul", { className: "nhc-msgs" },
-            ...lines.slice(-14).reverse().map((text, index) =>
-              h("li", { key: `${index}-${text}`, className: index === 0 ? "nhc-msg-latest" : undefined }, text))),
-        ),
-      );
+    const PET_GLYPHS = new Set("dfuDFU".split(""));
+    function petGlyphOf(state) {
+      const player = state?.player;
+      const tiles = Array.isArray(state?.tiles) ? state.tiles : [];
+      if (!player) return null;
+      for (const tile of tiles) {
+        const dx = Math.abs((tile.x ?? 0) - player.x);
+        const dy = Math.abs((tile.y ?? 0) - player.y);
+        if (dx <= 1 && dy <= 1 && (dx || dy) && PET_GLYPHS.has(tile.text)) return tile.text;
+      }
+      return null;
+    }
+
+    /** The engine's last lines, newest last, trimmed to what fits over the map. */
+    function recentMessages(state) {
+      const messages = Array.isArray(state?.messages) ? state.messages : [];
+      // The opening narrative is noise once play has started; keep the tail.
+      return messages.slice(-3);
+    }
+
+    /**
+     * The engine's message history, for the side column's log tab.
+     *
+     * The stage already shows the last few lines over the map; this is where the
+     * whole buffer lives, newest first, because the engine only keeps a window
+     * and a person asking "what just hit me" wants more than three lines.
+     */
+    function MessageLog(props) {
+      const { t, messages } = props;
+      const lines = Array.isArray(messages) ? messages.slice(-14).reverse() : [];
+      return h(React.Fragment, null,
+        h("div", { className: "nhc-pack-head" }, h("span", null, t("messages")),
+          lines.length ? h("span", { className: "nhc-pack-count" }, String(lines.length)) : null),
+        h("ul", { className: "nhc-log" },
+          ...(lines.length
+            ? lines.map((text, index) => h("li", { key: `${index}-${text}` }, text))
+            : [h("li", { key: "empty" }, t("noMessages"))])));
     }
 
     /**

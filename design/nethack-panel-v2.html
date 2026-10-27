@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NetHack 面板 · 设计稿 v2（已实现在 lib/client.js）</title>
+<style>
+/* TOKEN MAPPING（实现时替换为 Harness 主题 token，自动跟随明暗）
+   --bg -> --dsw-alias-bg-base      --l1 -> --dsw-alias-bg-layer-1   --l2 -> --dsw-alias-bg-layer-2
+   --ov -> --dsw-alias-bg-overlay   --b1 -> --dsw-alias-border-l1    --b2 -> --dsw-alias-border-l2
+   --t1 -> --dsw-alias-label-primary  --t2 -> --dsw-alias-label-secondary
+   --brand -> --dsw-alias-brand-primary  --ok/--warn/--bad/--idle -> --dsw-alias-state-*-primary */
+:root,[data-theme=dark]{
+  --bg:#0e1014;--l1:#15181e;--l2:#1b1f27;--ov:#242935;--b1:#262b35;--b2:#353c4a;
+  --t1:#e7eaf0;--t2:#97a0b2;--t3:#5f6778;--brand:#7c9cff;--ok:#5cc98b;--warn:#e8b04b;--bad:#ec6a72;--idle:#8b93a6;
+  --stage:#0a0c10;--shadow:0 10px 30px rgb(0 0 0/.35);
+}
+[data-theme=light]{
+  --bg:#f6f7f9;--l1:#ffffff;--l2:#f1f3f6;--ov:#e8ebf0;--b1:#e3e6ec;--b2:#cfd4dd;
+  --t1:#1b1f27;--t2:#5b6475;--t3:#9aa2b1;--brand:#3f63e0;--ok:#1f9d5c;--warn:#b7791f;--bad:#d14350;--idle:#6b7385;
+  --stage:#fbfbfc;--shadow:0 10px 30px rgb(20 30 60/.08);
+}
+:root{--mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:color-mix(in srgb,var(--bg) 70%,#000);color:var(--t1);font:13px/1.45 var(--sans);
+  display:flex;flex-direction:column;align-items:center;gap:18px;padding:24px 16px 48px;min-height:100vh}
+button{font:inherit;color:inherit}
+
+/* ---------- 设计稿外壳 ---------- */
+.toolbar{display:flex;gap:8px;font-size:12px;color:var(--t2)}
+.toolbar button{padding:4px 10px;border-radius:6px;border:1px solid var(--b2);background:var(--l1);cursor:pointer}
+.toolbar button[aria-pressed=true]{border-color:var(--brand);color:var(--brand)}
+.win{width:min(1240px,100%);height:800px;background:var(--bg);border:1px solid var(--b1);border-radius:12px;
+  overflow:hidden;display:flex;box-shadow:0 24px 70px rgb(0 0 0/.5);transition:width .25s}
+.win.narrow{width:520px}
+.rail{width:52px;flex:none;background:var(--l1);border-right:1px solid var(--b1);display:flex;flex-direction:column;
+  align-items:center;padding:44px 0 10px;gap:4px}
+.rail i{width:34px;height:34px;display:grid;place-items:center;border-radius:8px;font:600 17px var(--mono);color:var(--t3);font-style:normal}
+.rail i.on{background:color-mix(in srgb,var(--brand) 15%,transparent);color:var(--brand)}
+
+/* ---------- 面板 ---------- */
+.nh{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr) 340px;grid-template-rows:auto minmax(0,1fr);
+  container-type:inline-size}
+.narrow .nh{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr)}
+
+/* HUD：身份 + 生命/魔力条 + 关键数值 + 状态 + 操作 */
+.hud{grid-column:1/-1;display:flex;align-items:center;gap:18px;padding:10px 16px;border-bottom:1px solid var(--b1);
+  background:var(--l1);min-width:0}
+.who{display:flex;align-items:center;gap:10px;min-width:0}
+.avatar{width:34px;height:34px;flex:none;border-radius:9px;display:grid;place-items:center;font:700 18px var(--mono);
+  background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand)}
+.who b{display:block;font-size:13px;white-space:nowrap}
+.who span{display:block;font-size:11px;color:var(--t2);white-space:nowrap}
+.bars{display:flex;flex-direction:column;gap:5px;width:180px;flex:none}
+.bar{display:grid;grid-template-columns:22px 1fr 52px;align-items:center;gap:6px;font-size:10.5px;color:var(--t2)}
+.bar .track{height:6px;border-radius:99px;background:var(--l2);overflow:hidden;border:1px solid var(--b1)}
+.bar .fill{height:100%;border-radius:99px;transition:width .3s}
+.bar.hp .fill{background:var(--ok)} .bar.hp.low .fill{background:var(--bad)} .bar.hp.mid .fill{background:var(--warn)}
+.bar.pw .fill{background:var(--brand)}
+.bar em{font:600 11px var(--mono);font-style:normal;color:var(--t1);text-align:right}
+.stats{display:flex;gap:14px;min-width:0}
+.stat b{display:block;font:600 14px var(--mono);line-height:1.1}
+.stat span{display:block;font-size:10px;color:var(--t2);letter-spacing:.04em}
+.conds{display:flex;gap:5px;flex-wrap:wrap}
+.chip{font-size:10.5px;padding:2px 8px;border-radius:99px;border:1px solid var(--b2);color:var(--t2);white-space:nowrap}
+.chip.warn{border-color:color-mix(in srgb,var(--warn) 50%,transparent);color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.chip.bad{border-color:color-mix(in srgb,var(--bad) 50%,transparent);color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.hud-actions{margin-left:auto;display:flex;gap:6px;flex:none}
+.ib{width:30px;height:30px;border-radius:8px;border:1px solid var(--b1);background:var(--l2);color:var(--t2);cursor:pointer;
+  display:grid;place-items:center}
+.ib:hover{background:var(--ov);color:var(--t1);border-color:var(--b2)}
+
+/* 左：游戏舞台 */
+.play{display:flex;flex-direction:column;min-height:0;min-width:0;padding:12px;gap:10px}
+.stage{position:relative;flex:1 1 auto;min-height:220px;border-radius:12px;background:var(--stage);border:1px solid var(--b1);
+  overflow:hidden;display:flex;align-items:center;justify-content:center}
+.stage-top{position:absolute;inset:10px 10px auto 10px;display:flex;align-items:flex-start;gap:8px;pointer-events:none}
+.log{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;pointer-events:auto}
+.log p{margin:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--t2)}
+.log p:nth-last-child(2){opacity:.75}.log p:nth-last-child(3){opacity:.45}
+.log p:last-child{color:var(--t1)}
+.log p:last-child::before{content:"›";color:var(--brand);margin-right:6px;font-weight:700}
+.log-btn{pointer-events:auto;font-size:11px;padding:3px 8px;border-radius:6px;border:1px solid var(--b1);background:var(--l1);color:var(--t2);cursor:pointer}
+.where{position:absolute;left:12px;bottom:10px;font:11px var(--mono);color:var(--t3)}
+.legend-btn{position:absolute;right:10px;bottom:8px}
+.map{font:15px/1.18 var(--mono);white-space:pre;user-select:none;letter-spacing:0}
+.g-hero{color:var(--t1);font-weight:800;text-shadow:0 0 8px color-mix(in srgb,var(--brand) 80%,transparent)}
+.g-pet{color:var(--t1);font-weight:700;text-decoration:underline;text-decoration-color:var(--ok);text-underline-offset:3px}
+.g-mon{color:var(--bad);font-weight:700}
+.g-wall{color:var(--t2)} .g-floor{color:var(--t3)} .g-cor{color:var(--idle);opacity:.8}
+.g-door{color:var(--warn)} .g-stairs{color:var(--ok);font-weight:800}
+.g-gold{color:var(--warn)} .g-item{color:var(--brand)} .g-blind{color:var(--t3);opacity:.35}
+.legend{position:absolute;right:10px;bottom:44px;width:220px;padding:10px 12px;border-radius:10px;background:var(--l1);
+  border:1px solid var(--b2);box-shadow:var(--shadow);font-size:11.5px;display:none;grid-template-columns:20px 1fr;gap:4px 8px}
+.legend.open{display:grid}
+.legend code{font:700 13px var(--mono);text-align:center}
+
+/* 引擎提问：从舞台底部升起的卡片，选项即按钮 */
+.ask{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);width:min(560px,calc(100% - 28px));padding:12px 14px;
+  border-radius:12px;background:var(--l1);border:1px solid color-mix(in srgb,var(--warn) 45%,var(--b2));box-shadow:var(--shadow);
+  display:none;flex-direction:column;gap:9px}
+.ask.open{display:flex}
+.ask h4{margin:0;font-size:10.5px;letter-spacing:.06em;color:var(--warn);text-transform:uppercase;display:flex;gap:8px}
+.ask h4 span{margin-left:auto;color:var(--t3);text-transform:none;letter-spacing:0;font-weight:400}
+.ask p{margin:0;font-size:13.5px}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opt{display:inline-flex;align-items:center;gap:7px;padding:5px 10px 5px 5px;border-radius:8px;border:1px solid var(--b2);
+  background:var(--l2);cursor:pointer;font-size:12px}
+.opt kbd{min-width:20px;height:20px;padding:0 5px;border-radius:5px;display:grid;place-items:center;font:700 11px var(--mono);
+  background:var(--ov);color:var(--brand)}
+.opt:hover{border-color:var(--brand)}
+.opt.ghost{color:var(--t2)}
+
+/* 控制台：一行完成手动操作 */
+.console{flex:none;display:flex;align-items:stretch;gap:12px;padding:10px;border-radius:12px;background:var(--l1);border:1px solid var(--b1)}
+.console:focus-within{border-color:color-mix(in srgb,var(--brand) 60%,var(--b1))}
+.pad{display:grid;grid-template-columns:repeat(3,30px);grid-auto-rows:30px;gap:3px;flex:none}
+.k{border-radius:7px;border:1px solid var(--b1);background:var(--l2);cursor:pointer;display:grid;place-items:center;
+  font-size:13px;color:var(--t1);transition:transform .05s,background .1s}
+.k:hover{background:var(--ov);border-color:var(--b2)}
+.k:active,.k.hit{transform:scale(.94);background:color-mix(in srgb,var(--brand) 22%,var(--l2));border-color:var(--brand)}
+.k.mid{color:var(--t3);font-size:11px}
+.vsep{width:1px;background:var(--b1);flex:none}
+.acts{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;justify-content:space-between}
+.act-row{display:flex;flex-wrap:wrap;gap:5px}
+.act{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 9px 0 5px;border-radius:7px;border:1px solid var(--b1);
+  background:var(--l2);cursor:pointer;font-size:12px;white-space:nowrap}
+.act:hover{background:var(--ov);border-color:var(--b2)}
+.act kbd{font:700 10.5px var(--mono);color:var(--t2);background:var(--ov);border-radius:4px;padding:1px 5px}
+.keyline{display:flex;gap:6px;align-items:center}
+.keyline input{flex:1;min-width:0;height:28px;padding:0 9px;border-radius:7px;border:1px solid var(--b1);background:var(--bg);
+  color:var(--t1);font:12px var(--mono);outline:none}
+.keyline input:focus{border-color:var(--brand)}
+.hint{font-size:11px;color:var(--t3);white-space:nowrap}
+.cap{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--t3)}
+.cap i{width:7px;height:7px;border-radius:50%;background:var(--t3)}
+.console:focus-within .cap{color:var(--ok)} .console:focus-within .cap i{background:var(--ok)}
+
+/* 右：侧栏（背包 + 对话） */
+.side{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--b1);background:var(--l1)}
+.narrow .side{border-left:0;border-top:1px solid var(--b1)}
+.tabs{flex:none;display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--b1)}
+.tab{padding:7px 10px 8px;border:0;background:none;color:var(--t2);font-size:12px;cursor:pointer;border-bottom:2px solid transparent;
+  display:flex;gap:6px;align-items:center}
+.tab[aria-selected=true]{color:var(--t1);border-color:var(--brand)}
+.tab .n{font:10px var(--mono);padding:0 5px;border-radius:99px;background:var(--ov);color:var(--t2)}
+.tab .dot{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 20%,transparent);
+  animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.pane{flex:1;min-height:0;display:none;flex-direction:column}
+.pane.on{display:flex}
+
+/* 对话 */
+.chat{flex:1;min-height:0;overflow:auto;padding:14px 14px 6px;display:flex;flex-direction:column;gap:12px}
+.msg-u{align-self:flex-end;max-width:85%;padding:7px 11px;border-radius:12px 12px 4px 12px;background:var(--ov);font-size:12.5px}
+.msg-a{font-size:12.5px;color:var(--t1)}
+.tool{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:8px;background:var(--l2);border:1px solid var(--b1);
+  font:11px var(--mono);color:var(--t2)}
+.tool b{color:var(--brand);font-weight:600}
+.tool .r{margin-left:auto;color:var(--t3)}
+.tool.live{border-color:color-mix(in srgb,var(--ok) 45%,var(--b1))}
+.tool.live .r{color:var(--ok)}
+.quick{flex:none;display:flex;gap:6px;flex-wrap:wrap;padding:6px 14px}
+.qp{font-size:11.5px;padding:4px 10px;border-radius:99px;border:1px solid var(--b2);background:none;color:var(--t2);cursor:pointer}
+.qp:hover{color:var(--t1);border-color:var(--brand)}
+.composer{flex:none;margin:6px 12px 12px;border-radius:12px;border:1px solid var(--b2);background:var(--l2);padding:9px 10px 8px}
+.composer textarea{width:100%;border:0;background:none;resize:none;outline:none;color:var(--t1);font:13px var(--sans);height:38px}
+.composer-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--t3)}
+.send{margin-left:auto;height:28px;padding:0 12px;border-radius:8px;border:0;background:var(--bad);color:#fff;cursor:pointer;font-size:12px;
+  display:flex;gap:6px;align-items:center}
+.send i{width:8px;height:8px;background:#fff;border-radius:2px}
+
+/* 背包 */
+.inv{flex:1;min-height:0;overflow:auto;padding:8px 6px 12px}
+.inv h5{margin:10px 8px 4px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);font-weight:600}
+.item{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:6px 8px;border-radius:8px;cursor:pointer}
+.item:hover{background:var(--l2)}
+.item kbd{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;font:700 11px var(--mono);background:var(--ov);color:var(--brand)}
+.item span{font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item small{font-size:10px;padding:1px 6px;border-radius:99px;color:var(--ok);border:1px solid color-mix(in srgb,var(--ok) 40%,transparent)}
+.item .acts2{display:none;gap:4px}
+.item:hover small{display:none}.item:hover .acts2{display:flex}
+.mini{font-size:10.5px;padding:2px 7px;border-radius:5px;border:1px solid var(--b2);background:var(--l1);cursor:pointer;color:var(--t2)}
+
+/* 日志 */
+.history{flex:1;overflow:auto;margin:0;padding:10px 14px;list-style:none;display:flex;flex-direction:column;gap:6px}
+.history li{display:grid;grid-template-columns:44px 1fr;gap:8px;font-size:12px;color:var(--t2)}
+.history li b{font:10.5px var(--mono);color:var(--t3);font-weight:400;padding-top:1px}
+.history li:first-child{color:var(--t1)}
+
+/* 宽度降级 */
+@container (max-width:900px){.stats .opt-stat{display:none}.bars{width:140px}}
+.narrow .hud{flex-wrap:wrap;gap:10px 14px}
+.narrow .hud-actions{margin-left:auto}
+.narrow .stage{min-height:200px}
+.narrow .side{min-height:360px}
+.narrow .hint{display:none}
+
+/* 设计说明 */
+.notes{width:min(1240px,100%);display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.note{background:var(--l1);border:1px solid var(--b1);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--t2)}
+.note h3{margin:0 0 6px;font-size:13px;color:var(--t1)}
+.note ul{margin:0;padding-left:18px}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button id="tTheme">切换明/暗</button>
+  <button id="tWidth" aria-pressed="false">窄宽度（右侧栏）</button>
+  <button id="tAsk" aria-pressed="false">演示：引擎提问</button>
+  <button id="tLow" aria-pressed="false">演示：低血量</button>
+</div>
+
+<div class="win" id="win">
+  <nav class="rail"><i class="on">@</i></nav>
+
+  <section class="nh">
+    <!-- HUD -->
+    <header class="hud">
+      <div class="who">
+        <div class="avatar">@</div>
+        <div><b>Agnes · 女武神</b><span>Lv 3 · 地牢 2 层 · 中立</span></div>
+      </div>
+      <div class="bars">
+        <div class="bar hp" id="hpBar"><span>HP</span><div class="track"><div class="fill" style="width:74%"></div></div><em id="hpTxt">20/27</em></div>
+        <div class="bar pw"><span>Pw</span><div class="track"><div class="fill" style="width:60%"></div></div><em>3/5</em></div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>6</b><span>防御 AC</span></div>
+        <div class="stat"><b>47</b><span>金币</span></div>
+        <div class="stat"><b>1 284</b><span>回合</span></div>
+        <div class="stat opt-stat"><b>18/03</b><span>力量</span></div>
+      </div>
+      <div class="conds"><span class="chip warn">饥饿</span></div>
+      <div class="hud-actions">
+        <button class="ib" title="立即刷新">↻</button>
+        <button class="ib" title="重开游戏">⟲</button>
+      </div>
+    </header>
+
+    <!-- 左：游戏 -->
+    <main class="play">
+      <div class="stage" id="stage">
+        <div class="stage-top">
+          <div class="log">
+            <p>You hear some noises in the distance.</p>
+            <p>You see here a food ration.</p>
+            <p>The jackal bites!  你被豺狼咬了一口。</p>
+          </div>
+          <button class="log-btn" data-goto="log">全部消息 · 14</button>
+        </div>
+        <div class="map" id="map"></div>
+        <div class="where">Dlvl 2 · @ 38,9</div>
+        <button class="ib legend-btn" id="legendBtn" title="图例">?</button>
+        <div class="legend" id="legend">
+          <code class="g-hero">@</code><span>你</span>
+          <code class="g-pet">d</code><span>宠物（带下划线）</span>
+          <code class="g-mon">d</code><span>怪物</span>
+          <code class="g-floor">.</code><span>房间地板</span>
+          <code class="g-cor">#</code><span>走廊（可通行）</span>
+          <code class="g-wall">|</code><span>墙</span>
+          <code class="g-door">+</code><span>门</span>
+          <code class="g-stairs">&gt;</code><span>楼梯</span>
+          <code class="g-item">%</code><span>物品</span>
+          <code class="g-blind">░</code><span>未知格（非地板非墙）</span>
+        </div>
+
+        <div class="ask" id="ask">
+          <h4>游戏正在询问 <span>Esc 取消</span></h4>
+          <p>What do you want to eat? <span style="color:var(--t2)">— 你想吃什么？</span></p>
+          <div class="opts">
+            <button class="opt"><kbd>d</kbd>2 份口粮</button>
+            <button class="opt"><kbd>f</kbd>苹果</button>
+            <button class="opt"><kbd>,</kbd>脚下：口粮</button>
+            <button class="opt ghost"><kbd>?</kbd>列出全部</button>
+            <button class="opt ghost"><kbd>Esc</kbd>取消</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="console" tabindex="0" id="console">
+        <div class="pad" id="pad"></div>
+        <div class="vsep"></div>
+        <div class="acts">
+          <div class="act-row">
+            <button class="act"><kbd>s</kbd>搜索</button>
+            <button class="act"><kbd>,</kbd>拾取</button>
+            <button class="act"><kbd>o</kbd>开门</button>
+            <button class="act"><kbd>e</kbd>吃</button>
+            <button class="act"><kbd>&gt;</kbd>下楼</button>
+            <button class="act"><kbd>&lt;</kbd>上楼</button>
+            <button class="act"><kbd>i</kbd>背包</button>
+          </div>
+          <div class="keyline">
+            <button class="act"><kbd>␣</kbd>继续</button>
+            <button class="act"><kbd>⏎</kbd>回车</button>
+            <button class="act"><kbd>Esc</kbd>取消</button>
+            <input placeholder="输入按键或回答，回车发送">
+            <span class="cap"><i></i>键盘接管</span>
+          </div>
+          <span class="hint">点击此区域后，方向键 / 小键盘直接操作；离开即释放键盘。</span>
+        </div>
+      </div>
+    </main>
+
+    <!-- 右：侧栏 -->
+    <aside class="side">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" aria-selected="true" data-tab="chat"><span class="dot"></span>AI 搭档</button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="inv">背包 <span class="n">9</span></button>
+        <button class="tab" role="tab" aria-selected="false" data-tab="log">消息</button>
+      </div>
+
+      <div class="pane on" data-pane="chat">
+        <div class="chat">
+          <div class="msg-u">往下走，找楼梯，血少了就先回血</div>
+          <div class="tool"><b>observe</b>地图 · 状态 · 背包<span class="r">0.2s</span></div>
+          <div class="tool"><b>act</b>explore<span class="r">走了 23 步 · 停：怪物靠近</span></div>
+          <div class="msg-a">碰到一只豺狼，正面打得过，先解决它再继续往东边走廊探索。</div>
+          <div class="tool live"><b>act</b>move east ×1<span class="r">执行中…</span></div>
+        </div>
+        <div class="quick">
+          <button class="qp">继续探索</button><button class="qp">找下楼梯</button><button class="qp">先回血</button><button class="qp">背包里有什么好东西？</button>
+        </div>
+        <div class="composer">
+          <textarea placeholder="告诉 AI 该怎么玩…"></textarea>
+          <div class="composer-row"><span>deepseek-chat ▾</span><button class="send"><i></i>停止</button></div>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="inv">
+        <div class="inv">
+          <h5>武器</h5>
+          <div class="item"><kbd>a</kbd><span>+1 长剑</span><small>手持</small><div class="acts2"><button class="mini">放下</button></div></div>
+          <div class="item"><kbd>b</kbd><span>+0 匕首</span><span></span><div class="acts2"><button class="mini">装备</button><button class="mini">投掷</button></div></div>
+          <h5>护甲</h5>
+          <div class="item"><kbd>c</kbd><span>+3 小盾</span><small>穿戴</small><div class="acts2"><button class="mini">脱下</button></div></div>
+          <h5>食物</h5>
+          <div class="item"><kbd>d</kbd><span>2 份口粮</span><span></span><div class="acts2"><button class="mini">吃</button></div></div>
+          <div class="item"><kbd>f</kbd><span>苹果</span><span></span><div class="acts2"><button class="mini">吃</button></div></div>
+          <h5>药水</h5>
+          <div class="item"><kbd>g</kbd><span>未鉴定的冒泡药水</span><span></span><div class="acts2"><button class="mini">喝</button></div></div>
+          <h5>卷轴</h5>
+          <div class="item"><kbd>h</kbd><span>标着 "ELBIB YLOH" 的卷轴</span><span></span><div class="acts2"><button class="mini">读</button></div></div>
+          <h5>工具</h5>
+          <div class="item"><kbd>j</kbd><span>开锁工具</span><span></span><div class="acts2"><button class="mini">使用</button></div></div>
+          <div class="item"><kbd>k</kbd><span>油灯（熄灭）</span><span></span><div class="acts2"><button class="mini">使用</button></div></div>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="log">
+        <ul class="history">
+          <li><b>T1284</b>The jackal bites!</li>
+          <li><b>T1283</b>You hit the jackal.</li>
+          <li><b>T1281</b>You see here a food ration.</li>
+          <li><b>T1270</b>You hear some noises in the distance.</li>
+          <li><b>T1242</b>You find a hidden passage.</li>
+          <li><b>T1201</b>Welcome to level 2.</li>
+          <li><b>T1198</b>There is a staircase down here.</li>
+        </ul>
+      </div>
+    </aside>
+  </section>
+</div>
+
+<section class="notes">
+  <div class="note" style="grid-column:1/-1;border-color:var(--brand)"><h3>状态：已在插件中实现</h3>
+    <ul>
+      <li>实现位于 <code>plugins/dsh-nethack/lib/client.js</code>；本文件保留为视觉参考，颜色已映射到真实主题 token。</li>
+      <li>尚未在 GUI 里目视验证（页面需要登录令牌），只做了组件级渲染测试：<code>node --test</code> 74 项全过。</li>
+      <li>与稿子的差异：宠物用「你旁边 + 初始宠物字母」推断，不是引擎标记；提问卡片里菜单行答案来自引擎的 accelerator，不是写死的字母。</li>
+    </ul></div>
+  <div class="note"><h3>1 · 布局：左游戏，右搭档</h3><ul>
+    <li>原版地图与聊天上下抢高度（2:3），地图被压小；改为左右两栏，地图拿到整列高度。</li>
+    <li>右栏用标签页承载「AI 搭档 / 背包 / 消息」，聊天始终满高。</li>
+    <li>窄宽度（右侧 tab 停靠）自动退回单列：HUD → 舞台 → 侧栏。</li></ul></div>
+  <div class="note"><h3>2 · HUD 一眼读懂状态</h3><ul>
+    <li>角色身份 + 层数放最左；HP/Pw 改为进度条，HP 按比例绿/黄/红。</li>
+    <li>饥饿、混乱等状态用语义色 chip，危险状态红色。</li>
+    <li>刷新、重开收成图标按钮，重开仍走二次确认。</li></ul></div>
+  <div class="note"><h3>3 · 地图舞台</h3><ul>
+    <li>最近 3 条消息淡出叠在地图顶部，替代单行折叠 ticker；完整历史在「消息」页。</li>
+    <li>@ 发光、宠物下划线、怪物红色加粗，与物品/地形区分；右下角图例解释 ░ 与 #。</li>
+    <li>坐标与层数退到左下角弱化显示。</li></ul></div>
+  <div class="note"><h3>4 · 提问 & 手动操作</h3><ul>
+    <li>引擎提问变成浮在地图上的卡片，选项是「按键 + 中文」按钮，点一下直接回答（原版仅填入输入框）。</li>
+    <li>方向盘 + 常用动作 + 万能按键输入合并成一条控制台；聚焦时显示「键盘接管」指示。</li>
+    <li>每个动作按钮都标出原始按键，手玩与 AI 用词一致。</li></ul></div>
+  <div class="note"><h3>5 · AI 搭档</h3><ul>
+    <li>标签上的脉冲点表示 AI 正在行动；工具调用以紧凑行展示「做了什么 / 为何停下」。</li>
+    <li>快捷指令芯片（继续探索、找楼梯、先回血…）降低输入成本。</li>
+    <li>聊天仍嵌入 DSH 原生 Conversation，此处只示意样式。</li></ul></div>
+  <div class="note"><h3>6 · 背包</h3><ul>
+    <li>按类别分组，字母做成按键徽章；手持/穿戴用状态标签。</li>
+    <li>悬停行显示上下文动作（吃、喝、读、装备），点击即发送对应按键序列。</li>
+    <li>全部颜色映射到 Harness 主题 token，明暗自动跟随。</li></ul></div>
+</section>
+
+<script>
+// ---- 示意地图 ----
+const MAP = [
+"                                                                    ",
+"   ░░░░░░░░░    -----------------                ░░░░░░░░░░░░       ",
+"   ░       ░    |...............|                ░          ░       ",
+"   ░       ░    |..%.......$....+######          ░          ░       ",
+"   ░░░░░░░░░    |...............|     #     -------------------     ",
+"                |.......<.......|     #     |.................|     ",
+"                --------.--------     ######+.......d.........|     ",
+"                        #                   |....@d...........|     ",
+"                        #                   |.......!.........|     ",
+"                        ##########          |.............>...|     ",
+"                                 #          -------------------     ",
+"                                 #####                              ",
+"                                     ░░░░                           ",
+];
+const petAt = {x:50,y:7};
+let hero = {x:49,y:7};
+function cls(ch,x,y){
+  if(ch==="@")return"g-hero";
+  if(ch==="d")return (x===petAt.x&&y===petAt.y)?"g-pet":"g-mon";
+  if(ch===".")return"g-floor"; if(ch==="#")return"g-cor"; if(ch==="|"||ch==="-")return"g-wall";
+  if(ch==="+")return"g-door"; if(ch==="<"||ch===">")return"g-stairs"; if(ch==="$")return"g-gold";
+  if(ch==="░")return"g-blind"; return"g-item";
+}
+function draw(){
+  const rows=MAP.map(r=>r.split(""));
+  rows.forEach(r=>r.forEach((c,i)=>{if(c==="@")r[i]="."}));
+  rows[hero.y][hero.x]="@";
+  document.getElementById("map").innerHTML=rows.map((r,y)=>r.map((c,x)=>c===" "?" ":`<span class="${cls(c,x,y)}">${c}</span>`).join("")).join("\n");
+  document.querySelector(".where").textContent=`Dlvl 2 · @ ${hero.x},${hero.y}`;
+}
+function move(dx,dy){const c=MAP[hero.y+dy]?.[hero.x+dx];
+  if(c&&".%$!<>+#@".includes(c)&&!(hero.x+dx===petAt.x&&hero.y+dy===petAt.y)){hero={x:hero.x+dx,y:hero.y+dy};draw();}}
+draw();
+
+// ---- 方向盘 ----
+const dirs=[["↖",-1,-1,"7"],["↑",0,-1,"8"],["↗",1,-1,"9"],["←",-1,0,"4"],["·",0,0,"."],["→",1,0,"6"],["↙",-1,1,"1"],["↓",0,1,"2"],["↘",1,1,"3"]];
+const pad=document.getElementById("pad");
+const keyBtn={};
+dirs.forEach(([l,dx,dy,k])=>{const b=document.createElement("button");b.className="k"+(k==="."?" mid":"");b.textContent=l;b.title=`${k}`;
+  b.onclick=()=>move(dx,dy);pad.appendChild(b);keyBtn[k]=b;});
+const keymap={ArrowUp:"8",ArrowDown:"2",ArrowLeft:"4",ArrowRight:"6"};
+document.getElementById("console").addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT")return;
+  const k=keymap[e.key]??(/^[1-9.]$/.test(e.key)?e.key:null); if(!k)return; e.preventDefault();
+  const d=dirs.find(x=>x[3]===k); move(d[1],d[2]); const b=keyBtn[k]; b.classList.add("hit"); setTimeout(()=>b.classList.remove("hit"),120);
+});
+
+// ---- 标签页 ----
+function goto(name){document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",t.dataset.tab===name));
+  document.querySelectorAll(".pane").forEach(p=>p.classList.toggle("on",p.dataset.pane===name));}
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>goto(t.dataset.tab));
+document.querySelector("[data-goto=log]").onclick=()=>goto("log");
+
+// ---- 设计稿开关 ----
+document.getElementById("legendBtn").onclick=()=>document.getElementById("legend").classList.toggle("open");
+document.getElementById("tTheme").onclick=()=>{const r=document.documentElement;r.dataset.theme=r.dataset.theme==="dark"?"light":"dark"};
+const toggle=(id,fn)=>{const b=document.getElementById(id);b.onclick=()=>{const on=b.getAttribute("aria-pressed")!=="true";b.setAttribute("aria-pressed",on);fn(on)}};
+toggle("tWidth",on=>document.getElementById("win").classList.toggle("narrow",on));
+toggle("tAsk",on=>document.getElementById("ask").classList.toggle("open",on));
+toggle("tLow",on=>{const bar=document.getElementById("hpBar");bar.classList.toggle("low",on);
+  bar.querySelector(".fill").style.width=on?"18%":"74%";document.getElementById("hpTxt").textContent=on?"5/27":"20/27";
+  document.querySelector(".conds").innerHTML=on?'<span class="chip warn">饥饿</span><span class="chip bad">HP 危险</span>':'<span class="chip warn">饥饿</span>';});
+</script>
+</body>
+</html>

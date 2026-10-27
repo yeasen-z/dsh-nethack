@@ -9,16 +9,27 @@
 
 ## Preview
 
-![NetHack gameplay in DeepSeek Harness](<playshot.png>)
+The game is the left column — a status HUD, the map with the engine's last lines
+floating over it, and one always-visible console (direction pad, verbs, free-key
+field). The right column holds the AI conversation, the pack and the message log
+as tabs.
 
-*Play NetHack inside DeepSeek Harness with natural-language chat and direct controls.*
+![Chatting with the AI partner while it plays](<docs/screenshots/panel-ai-chat.png>)
+
+*Talking to the AI partner: it drives the same character you see, and every step
+it takes shows up on the map and in the HUD.*
+
+![The pack tab](<docs/screenshots/panel-pack.png>)
+
+*The pack tab: carried items grouped by class, each with the inventory letter the
+engine expects.*
 
 ## Install the DeepSeek Harness plugin
 
 The playable DSH bundle is [`plugins/dsh-nethack`](<plugins/dsh-nethack/README.md>):
-the real NetHack 3.6.7 WASM engine, map, pack, always-visible key controls, and a
-separate native game conversation. No engine compilation and no npm publication
-are needed.
+the real NetHack 3.6.7 WASM engine, a status HUD and map stage, one always-visible
+console, a pack and message-log tab, and a separate native game conversation. No
+engine compilation and no npm publication are needed.
 
 **Requirements:** DSH `>=0.2.1-rc.3 <0.3.0` (declared as `engines.dsh`; only
 0.2.1-rc.3 was actually exercised) and a configured model/provider if you want

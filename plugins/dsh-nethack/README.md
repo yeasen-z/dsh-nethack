@@ -7,6 +7,10 @@ character to the model and talk to it in an ordinary DSH conversation.
 Hand-play and model-play drive the **same** engine: the panel always shows the
 game the model is playing, and the model sees the map you see.
 
+![The game on the left, the AI conversation on the right](../docs/screenshots/panel-ai-chat.png)
+
+![The pack tab](../docs/screenshots/panel-pack.png)
+
 | | |
 |---|---|
 | Package | `dsh-nethack` (a DSH bundle: Host plugin + Client plugin + agent preset) |
@@ -77,10 +81,26 @@ configuration files.
 
 - Talk to the game in its conversation, e.g. "探索附近房间". It uses DSH's
   transcript, streaming, model picker and stop control.
-- **Key controls** (lower left, always visible): eight-direction pad, wait,
-  pickup, search, open, stairs, and raw answer input. Keyboard capture is local
-  to the focused control area; the chat box is not intercepted.
-- **New game** asks for confirmation before discarding the current run.
+- The panel is two columns: **the game on the left** (status HUD, the map, the
+  console) and **a side column on the right** holding the AI conversation, the
+  pack and the message log as tabs. In a narrow dock (the right-column tab) the
+  columns stack instead of shrinking the map.
+- **HUD** (top): the character and depth, HP and Pw as bars (green, amber, red
+  as HP drops), AC, gold, turn, strength, and any active conditions. Refresh and
+  **New game** sit at its right; a new game asks for confirmation before
+  discarding the current run.
+- **Stage**: the map, with the engine's last three lines fading above it and the
+  full log one click away in the Messages tab. `@` glows, your pet is
+  underlined, monsters are red. The `?` corner explains every glyph, including
+  `░` (an unseen cell: neither floor nor wall).
+- **Console** (bottom left, always visible): eight-direction pad, wait, search,
+  pick up, open, stairs, space/Enter/Escape and a raw key field. Every button
+  shows the engine key it sends. Arrow keys and numpad are captured only while
+  the console has focus — the label says "Keyboard captured" when it does, and
+  the chat composer is never intercepted.
+- **Questions** the engine asks rise over the map as a card. Menu rows become
+  buttons carrying their own accelerator, so a name, an item or a "--More--"
+  page is answered with one click; a line prompt keeps a text field.
 - Switching away and coming back reuses this game's conversation; a new game
   gets a new one. The composer stays at the bottom of an empty conversation.
 - The model answers engine questions itself, but you can too: a direction
@@ -94,7 +114,7 @@ Only three tools are exposed in the game model's assembled request:
 
 | Tool | Purpose |
 |---|---|
-| `nethack_observe` | Map (with `?` for never-seen cells), status, pack, recent messages, the pending prompt, and the keys that prompt accepts. |
+| `nethack_observe` | Map (with `░` for never-seen cells), status, pack, recent messages, the pending prompt, and the keys that prompt accepts. |
 | `nethack_act` | Move, wait, pick up, search, open, stairs, explore, or raw keys. Repeats stop on a question, damage, an arrival, or a step that did not land. |
 | `nethack_respond` | Answer item, direction, yes/no, text, menu or position prompts. |
 
@@ -193,7 +213,7 @@ lib/session.mjs        game Session binding, tool filtering, execution guard
 lib/game.mjs           engine state: prompts, inventory, turn accounting
 lib/engine-worker.mjs  worker bridge to the WASM engine
 lib/navigate.mjs       grid, pathfinding and exploration
-lib/client.js          the panel: map, pack, pad, native conversation slot
+lib/client.js          the panel: HUD, map stage, console, side tabs, native conversation slot
 cordis.patch.yml       bundle patch and the `nethack` agent preset (persona)
 market/index.json      generated format-1 plugin market index
 locale/                panel strings (en, zh)

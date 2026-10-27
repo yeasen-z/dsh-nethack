@@ -3,8 +3,39 @@
 All notable changes to the `dsh-nethack` bundle. The version here is the version
 in [`package.json`](package.json); the market index lists the same strings.
 
-## Unreleased
+## 2026-10-27 — 0.2.0
 
+- Redesign the panel: the game is a full-height left column (HUD, map stage,
+  console) and the right column holds the AI conversation, the pack and the
+  message log as tabs, so the map is no longer squeezed by the transcript. A
+  narrow dock stacks the columns instead of shrinking both.
+- Add a status HUD: character, depth, HP and Pw bars with low-HP colouring, AC,
+  gold, turn, strength, active conditions, and refresh/new game on the right.
+- Float the engine's last three messages over the map (older lines fade) and
+  move the full history into the Messages tab; add a `?` map legend that
+  explains `░`, `#`, traps and items.
+- Raise engine questions over the map as a card whose menu rows are buttons
+  carrying their own accelerator, so a menu, `--More--` or yes/no question is
+  answered with one click; position prompts now explain that the cursor, not the
+  character, moves.
+- Merge the key manual and the action buttons into one always-visible console
+  strip with a visible "keyboard captured" state, and label every action button
+  with the engine key it sends.
+- Underline the pet instead of painting it as a monster, using the tile next to
+  the player rather than colouring every letter.
+- Fix the glyph table: a closed door (`+`, which shares its glyph with a
+  spellbook) was drawn as a spellbook and never as a door, and traps (`^`),
+  undrawn cells (`░`) and the `)` weapon glyph were missing from it entirely.
+- Add the panel screenshots (AI conversation, pack) to both READMEs.
+- Fix the palette to use hover/tertiary tokens that actually exist
+  (`interactive-bg-hover`, `label-tertiary`, `bg-module-platform`) instead of
+  inventing hover fills, and confirm every `--dsw-alias-*` name against the
+  host theme sheet.
+- Rewrite the game persona around the tools' real behaviour: batch with
+  `explore`/`count`, observe only at the start or after a question, search in
+  batches of ten rather than three, keep digit keys for prompt answers and
+  direction names for `move`, and report at milestones instead of running
+  without a stop condition. The pet-swap note no longer claims a swap is free.
 - Mark undrawn cells with `░` instead of `?`, which is the engine's scroll glyph,
   and explain the blind cell in the map key and the persona: it is neither floor
   nor wall, must not be routed through or assumed reachable.

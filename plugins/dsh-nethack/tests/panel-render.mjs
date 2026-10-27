@@ -45,10 +45,10 @@ check('empty native transcript still reserves space above the bottom composer', 
 });
 
 check('the pack shows exactly one scrollbar, never nested ones', () => {
-  // The narrow side column and the pack element both fill the dock; when both
-  // were scroll containers a long pack rendered two scrollbars side by side.
-  assert.ok(/\.nhc-side > \.nhc-pack \{[^}]*overflow: hidden;/.test(source));
-  assert.ok(/\.nhc-pack \{ flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0;/.test(source));
+  // The pack now lives in a side-column tab instead of a dock column, but the
+  // rule is unchanged: the pack fills its pane and clips, and only the body
+  // inside it scrolls. Two scroll containers showed two scrollbars for one list.
+  assert.ok(/\.nhc-pack \{ flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;/.test(source));
   assert.ok(/\.nhc-pack-body \{[^}]*overflow-y: auto;/.test(source));
   assert.equal((source.match(/\.nhc-pack-body \{[^}]*overflow: auto;/g) ?? []).length, 0);
   // The list inside the pack body used to carry its own max-height + overflow,
@@ -88,9 +88,15 @@ check('main panel reserves desktop window-button clearance outside the scroller'
   assert.ok(source.includes('padding-top: var(--dsh-frame-top-clearance, 48px);'));
   const tab = NetHackPanel({ ...injectedFor(null), placement: 'tab' });
   assert.equal(tab.props['data-placement'], 'tab');
-  // Loading, ended and live-game roots must all carry the placement, not just
-  // the first paint. The root, not the scrolling canvas, owns the safe area.
-  assert.equal((source.match(/className: "nhc-root", "data-placement": props.placement/g) ?? []).length, 3);
+  // Every branch now returns the same single root, so the placement can never be
+  // dropped on one of the states (the old three-branch panel repeated the root
+  // three times and a fourth branch would have quietly lost the safe area).
+  assert.equal((source.match(/className: "nhc-root", "data-placement": props.placement/g) ?? []).length, 1);
+  // The body owns the placement attribute too, which is what the layout CSS keys
+  // off; it must be the one place the two-column grid is attached.
+  assert.ok(/className: "nhc-body", "data-placement": props.placement/.test(source.replace(/,\s*"data-placement"/g, ', "data-placement"')));
+  assert.ok(/\.nhc-body \{[^}]*grid-template-columns:/.test(source));
+  assert.ok(/@container \(max-width: 780px\)/.test(source), 'narrow dock must collapse to one column');
 });
 
 check('factory rendering is always supplied, scoped child rendering is conditional', () => {
@@ -120,7 +126,9 @@ check('panel never calls renderFactorySlot itself', () => {
   // This is the actual bug: the panel is not a factory occurrence, so it can
   // never render the Conversation directly. Assert it delegates to its child.
   const from = source.indexOf('function NetHackPanel');
-  const to = source.indexOf('function MessageTicker');
+  // The panel body ends where the next top-level helper starts; MessageTicker
+  // was folded into the stage overlay and no longer exists under that name.
+  const to = source.indexOf('function MessageLog');
   assert.ok(from > 0 && to > from, 'could not locate the panel body');
   const body = source.slice(from, to);
   // Strip comments first: the prose explains renderFactorySlot, which is not a

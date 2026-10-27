@@ -78,7 +78,9 @@ async function check(label, options, test) {
   try { await test(s); console.log('PASS', label); passed++; } finally { s.cleanup(); }
 }
 await check('visible right tab fetches while centre shows conversation', { tab: true }, s => {
-  assert.equal(s.requests(), 1); assert.ok(s.tree().includes('nhc-canvas'));
+  // The layout is the two-column body now (game left, side right); the old
+  // single scrolling `nhc-canvas` is gone, so the assertion follows the frame.
+  assert.equal(s.requests(), 1); assert.ok(s.tree().includes('nhc-body'));
 });
 await check('hidden right tab does not poll', { tab: false }, s => assert.equal(s.requests(), 0));
 await check('revealing right tab fetches immediately', { tab: false }, async s => {
