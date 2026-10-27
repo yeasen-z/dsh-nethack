@@ -1,128 +1,104 @@
 # dsh-nethack
 
-> **Play NetHack with natural language — inside DeepSeek Harness.**
-
-> **Public.** Install it from DSH's plugin market, or straight from git — the
-> bundle is [`plugins/dsh-nethack`](<plugins/dsh-nethack/README.md>), not the
-> repository root, which also holds the middleware library described at the end.
-> Repository: [yeasen-z/dsh-nethack](https://github.com/yeasen-z/dsh-nethack).
-
-## Preview
-
-The game is the left column — a status HUD, the map with the engine's last lines
-floating over it, and one always-visible console (direction pad, verbs, free-key
-field). The right column holds the AI conversation, the pack and the message log
-as tabs.
+Play NetHack in natural language, inside DeepSeek Harness. You and an AI partner
+drive the same character in the same game.
 
 ![Chatting with the AI partner while it plays](<docs/screenshots/panel-ai-chat.png>)
 
-*Talking to the AI partner: it drives the same character you see, and every step
-it takes shows up on the map and in the HUD.*
-
 ![The pack tab](<docs/screenshots/panel-pack.png>)
 
-*The pack tab: carried items grouped by class, each with the inventory letter the
-engine expects.*
+## What you get
 
-## Install the DeepSeek Harness plugin
+- The real NetHack 3.6.7 engine (WASM, `@neth4ck/wasm-367`). No compilation.
+- A game panel: a status HUD, the map, and one console with a direction pad, verbs and a free-key field.
+- An AI partner in its own conversation. Every step it takes shows on the map.
+- A pack tab grouped by item class, and a message log.
 
-The playable DSH bundle is [`plugins/dsh-nethack`](<plugins/dsh-nethack/README.md>):
-the real NetHack 3.6.7 WASM engine, a status HUD and map stage, one always-visible
-console, a pack and message-log tab, and a separate native game conversation. No
-engine compilation is needed.
+**Requirements:** DSH `>=0.2.1-rc.3 <0.3.0` (declared in `engines.dsh`; only
+0.2.1-rc.3 has been exercised). A configured model is needed only for the AI
+partner. The manual controls work without one.
 
-**Requirements:** DSH `>=0.2.1-rc.3 <0.3.0` (declared as `engines.dsh`; only
-0.2.1-rc.3 was actually exercised) and a configured model/provider if you want
-the model to play — the manual controls work without one.
+## Install
 
-### From the plugin market
+All four paths install the same bundle, [`plugins/dsh-nethack`](<plugins/dsh-nethack/README.md>).
+Pick one.
 
-The easiest path. Open **Plugins → Discover**, choose **Add index source**, and
-paste:
+### 1. Plugin market (recommended)
+
+Open **Plugins → Discover → Add index source** and paste:
 
 ```text
 https://raw.githubusercontent.com/yeasen-z/dsh-nethack/main/plugins/dsh-nethack/market/index.json
 ```
 
-Then search for **`nethack`** and install the **NetHack** entry. Search covers
-names, authors, keywords, and every language of the titles and descriptions, so
-`net` works as a prefix, and `地牢`, `游戏`, `roguelike`, `wasm`, `agent` and the
-author `yeasen-z` all match. Words are ANDed, so `nethack postgres` finds
-nothing.
+Search for `nethack` and install **NetHack**. Search matches names, keywords,
+authors and both English and Chinese titles, so `net`, `地牢` and `roguelike`
+all work.
 
-### From npm
+### 2. npm
 
-In **Plugins → Add plugin**, type the package name:
+In **Plugins → Add plugin**, enter:
 
 ```text
 @yeaszn/dsh-neth4ck
 ```
 
-This is the same bundle as the other paths. npm refuses new package names that
-contain `nethack`, so the package is published as `dsh-neth4ck`; inside DSH the
-plugin, the panel and the preset are still called NetHack.
+- npm does not allow new package names containing `nethack`, so the package is
+  `dsh-neth4ck`. Inside DSH it is still called NetHack.
+- If you get `404 Not Found`, your **Install source** mirror has not synced the
+  package yet (for example `registry.npmmirror.com`). Switch to **npm official**,
+  or wait a few minutes and retry.
 
-If the install fails with `404 ... Not Found`, the **Install source** selector is
-on a mirror that has not synced this package yet (the mainland China mirror,
-`registry.npmmirror.com`, lags the official registry for new packages). Switch it
-to **npm official** and install again, or wait a few minutes and retry.
+### 3. Git, pinned to a commit
 
-### From a clone
-
-```sh
-git clone https://github.com/yeasen-z/dsh-nethack.git
-cd dsh-nethack
-```
-
-In your **DeepSeek Harness** session, ask:
-
-> Install the local bundle at `/absolute/path/to/dsh-nethack/plugins/dsh-nethack` using the plugin manager. Enable both the NetHack plugin and its nethack agent preset.
-
-### Straight from git, pinned to a commit
-
-No clone needed. Pin the commit, because a branch would let the installed copy
-change under you:
+No clone needed. Pin a full commit SHA; a branch would change under you:
 
 ```json
 {"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack.git#<commit>&path:/plugins/dsh-nethack"}
 ```
 
-`<commit>` is any full SHA from this repository; the newest one on the market
-page is the pin in [`market/index.json`](<plugins/dsh-nethack/market/index.json>)
-(`versions[0].source.commit`). The release procedure is in the
-[bundle guide](<plugins/dsh-nethack/README.md>).
+The current pin is `versions[0].source.commit` in
+[`market/index.json`](<plugins/dsh-nethack/market/index.json>).
 
-Approve the installation and enable **both** the NetHack plugin and its
-`nethack` preset. Refresh DSH, then open the **@ / NetHack** panel.
+### 4. From a clone
 
-**Update:** a market install carries an exact commit, so updating means installing
-the newer version from Discover. From a clone, run `git pull --ff-only` and ask
-DSH to reinstall the same local bundle. Do not hand-edit your DSH profile or
-install the whole repository as an npm package: the installable bundle is the
-plugin subdirectory.
+```sh
+git clone https://github.com/yeasen-z/dsh-nethack.git
+```
 
-**Limits:** one live game per Host process. Switching panels preserves the same
-game conversation. Plugin reload keeps the live engine, but quitting the Host
-ends the in-memory game; durable chat history is not a saved NetHack game.
-Model calls use your configured provider and may incur charges. The game chat
-needs a model; the panel and key controls do not.
+Then ask DSH:
+
+> Install the local bundle at `/absolute/path/to/dsh-nethack/plugins/dsh-nethack` using the plugin manager. Enable both the NetHack plugin and its nethack agent preset.
+
+### After installing
+
+Approve the install and enable **both** the NetHack plugin and its `nethack`
+preset. Refresh DSH, then open the **@ / NetHack** panel.
+
+## Update
+
+- **Market or git:** install the newer commit. A market install is pinned to an
+  exact commit, so you update by installing the newer version.
+- **Clone:** run `git pull --ff-only`, then ask DSH to reinstall the same local
+  bundle.
+
+Do not hand-edit your DSH profile, and do not install the whole repository as an
+npm package. The installable unit is the plugin subdirectory.
+
+## Limits
+
+- One live game per Host process. Quitting Host ends the in-memory game. Chat
+  history is not a saved NetHack game.
+- Model calls use your configured provider and may incur charges.
 
 ---
 
-dsh-nethack is a **middleware and interaction layer that exposes NetHack as a language-controllable environment** for humans and LLM agents. The human and the AI operate *the same character in the same game session*: language can query, propose, execute, or delegate; direct controls always remain available through the same execution authority.
+## Middleware library (developer reference)
 
-The core deliverable is the **dsh-nethack Middleware**: a reusable, model-independent interface for observing the game (`observe()`), executing typed actions (`step()`), running bounded skills (`executeSkill()`), and managing human/AI control ownership (`stop()` / `takeOver()`). **dsh-nethack Web** is its first client; a future evaluation runner uses the same contracts.
-
-This repository implements the design described in the developer handoff ("Middleware-first architecture", 2026-09-30). All schemas here are **our proposed contracts**, not existing NetHack exports.
-
----
-
-## Design of the middleware
-
-The rest of this file describes the original middleware design that the plugin
-implements on top of DSH: contracts, invariants, and the evaluation harness in
-`packages/`, `apps/` and `eval/`. Everything below is about that library layer,
-not about installing the game — use the bundle guide for that.
+The plugin is built on a middleware library that exposes NetHack as an
+environment that humans and LLM agents can control. You do not need this section
+to play; it describes the contracts, invariants and test harness under
+`packages/`, `apps/` and `eval/`.
 
 ## 1. Architecture
 
