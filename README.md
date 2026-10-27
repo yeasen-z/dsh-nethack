@@ -1,94 +1,85 @@
 # dsh-nethack
 
-Play NetHack in natural language, inside DeepSeek Harness. You and an AI partner
-drive the same character in the same game.
+Play NetHack in natural language, inside DeepSeek Harness. The game runs the real
+NetHack 3.6.7 engine (WASM). You and an AI partner drive the same character in the
+same game session.
 
 ![Chatting with the AI partner while it plays](<docs/screenshots/panel-ai-chat.png>)
 
 ![The pack tab](<docs/screenshots/panel-pack.png>)
 
-## What you get
+**Requirements:** DSH `>=0.2.1-rc.3 <0.3.0` (`engines.dsh`; only 0.2.1-rc.3 has been
+exercised). A configured model is needed only for the AI partner; the manual
+controls work without one.
 
-- The real NetHack 3.6.7 engine (WASM, `@neth4ck/wasm-367`). No compilation.
-- A game panel: a status HUD, the map, and one console with a direction pad, verbs and a free-key field.
-- An AI partner in its own conversation. Every step it takes shows on the map.
-- A pack tab grouped by item class, and a message log.
+## 1. Quick install from npm
 
-**Requirements:** DSH `>=0.2.1-rc.3 <0.3.0` (declared in `engines.dsh`; only
-0.2.1-rc.3 has been exercised). A configured model is needed only for the AI
-partner. The manual controls work without one.
+Package: **`@yeaszn/dsh-neth4ck`** (the current release is `0.2.2`).
 
-## Install
-
-All four paths install the same bundle, [`plugins/dsh-nethack`](<plugins/dsh-nethack/README.md>).
-Pick one.
-
-### 1. Plugin market (recommended)
-
-Open **Plugins → Discover → Add index source** and paste:
+In DSH, open **Plugins → Add plugin** and enter:
 
 ```text
-https://raw.githubusercontent.com/yeasen-z/dsh-nethack/main/plugins/dsh-nethack/market/index.json
+@yeaszn/dsh-neth4ck@0.2.2
 ```
 
-Search for `nethack` and install **NetHack**. Search matches names, keywords,
-authors and both English and Chinese titles, so `net`, `地牢` and `roguelike`
-all work.
+Approve the install, enable **both** the NetHack plugin and its `nethack` preset,
+refresh DSH, then open the **@ / NetHack** panel.
 
-### 2. npm
+- The package is published as `dsh-neth4ck` because npm refuses new names that
+  contain `nethack`. Inside DSH it is still called NetHack.
+- If you get `404 Not Found`, your install source mirror has not synced the package
+  yet (for example `registry.npmmirror.com`). Switch to **npm official**, or wait a
+  few minutes and retry.
+- Only one copy of this plugin can be installed at a time. To change versions,
+  uninstall first.
 
-In **Plugins → Add plugin**, enter:
+The plugin market also lists it: **Plugins → Discover → Add index source**, paste
+`https://raw.githubusercontent.com/yeasen-z/dsh-nethack/main/plugins/dsh-nethack/market/index.json`,
+then search for `nethack`.
 
-```text
-@yeaszn/dsh-neth4ck
-```
-
-- npm does not allow new package names containing `nethack`, so the package is
-  `dsh-neth4ck`. Inside DSH it is still called NetHack.
-- If you get `404 Not Found`, your **Install source** mirror has not synced the
-  package yet (for example `registry.npmmirror.com`). Switch to **npm official**,
-  or wait a few minutes and retry.
-
-### 3. Git, pinned to a commit
-
-No clone needed. Pin a full commit SHA; a branch would change under you:
-
-```json
-{"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack.git#<commit>&path:/plugins/dsh-nethack"}
-```
-
-The current pin is `versions[0].source.commit` in
-[`market/index.json`](<plugins/dsh-nethack/market/index.json>).
-
-### 4. From a clone
+## 2. Local development from git clone
 
 ```sh
 git clone https://github.com/yeasen-z/dsh-nethack.git
+cd dsh-nethack
 ```
 
-Then ask DSH:
+Then, in a DSH session, ask:
 
 > Install the local bundle at `/absolute/path/to/dsh-nethack/plugins/dsh-nethack` using the plugin manager. Enable both the NetHack plugin and its nethack agent preset.
 
-### After installing
+To update after you change code, pull (`git pull --ff-only`) or edit, then ask DSH
+to reinstall the same local bundle and restart DSH.
 
-Approve the install and enable **both** the NetHack plugin and its `nethack`
-preset. Refresh DSH, then open the **@ / NetHack** panel.
+Do not symlink the bundle into your DSH profile by hand, and do not install the whole
+repository as an npm package. The installable unit is `plugins/dsh-nethack`. Run the
+tests with `node plugins/dsh-nethack/tests/<name>.mjs`.
 
-## Update
+To pin a released commit instead of a clone, use the git source in
+`market/index.json` (`versions[0].source.commit`). Pin a full SHA, because a branch
+would change under you.
 
-- **Market or git:** install the newer commit. A market install is pinned to an
-  exact commit, so you update by installing the newer version.
-- **Clone:** run `git pull --ff-only`, then ask DSH to reinstall the same local
-  bundle.
+## 3. What it is for
 
-Do not hand-edit your DSH profile, and do not install the whole repository as an
-npm package. The installable unit is the plugin subdirectory.
+**Play it yourself.** Use the direction pad, verbs and free-key field in the
+console, the pack tab for inventory, and the message log. No model is required.
+
+**Let an agent play it.** The game is an environment an LLM agent can observe and
+act in, with the same controls and the same character as the human:
+
+- observe the map, status and inventory;
+- propose typed actions, or run a bounded skill such as walking to a target;
+- hand control back and forth. Stop revokes the agent's permission immediately, so
+  late actions from an earlier turn never run.
+
+The human and the agent share one game. This makes the project useful both as a
+companion to play with and as a gaming environment for studying agent behaviour.
+The contracts are described in the developer reference below.
 
 ## Limits
 
-- One live game per Host process. Quitting Host ends the in-memory game. Chat
-  history is not a saved NetHack game.
+- One live game per Host process. Quitting DSH ends the in-memory game; chat history
+  is not a saved NetHack game.
 - Model calls use your configured provider and may incur charges.
 
 ---
