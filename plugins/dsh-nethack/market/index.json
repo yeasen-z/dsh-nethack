@@ -43,7 +43,7 @@
   },
   "plugins": [
     {
-      "name": "dsh-nethack",
+      "name": "@yeaszn/dsh-neth4ck",
       "title": {
         "en": "NetHack",
         "zh": "NetHack 地牢"
@@ -78,25 +78,12 @@
       },
       "versions": [
         {
-          "version": "0.2.0",
-          "publishTimestamp": 1793111116,
+          "version": "0.2.1",
+          "publishTimestamp": 1793114789,
           "source": {
             "type": "git",
             "url": "https://github.com/yeasen-z/dsh-nethack",
-            "commit": "90dfdfd8bcbb313c3842683a263e68fa61a9e2ed",
-            "path": "plugins/dsh-nethack"
-          },
-          "engines": {
-            "dsh": ">=0.2.1-rc.3 <0.3.0"
-          }
-        },
-        {
-          "version": "0.1.0",
-          "publishTimestamp": 1792989291,
-          "source": {
-            "type": "git",
-            "url": "https://github.com/yeasen-z/dsh-nethack",
-            "commit": "bfcd9112185a00879b73086f954c20e357d3d843",
+            "commit": "4f4cdb209994cf457da9cd7858ba324061a1b4a5",
             "path": "plugins/dsh-nethack"
           },
           "engines": {
