@@ -3,6 +3,15 @@
 All notable changes to the `dsh-nethack` bundle. The version here is the version
 in [`package.json`](package.json); the market index lists the same strings.
 
+## 2026-10-28 — 0.2.2
+
+- Fix: the panel never activated after installing 0.2.1 from npm. The client
+  bundle registered under the old id `dsh-nethack` while the package is
+  `@yeaszn/dsh-neth4ck`, so the boot could not find it and re-executed the
+  bundle ("duplicate factory registration"). The client registration id and the
+  host export name now both equal the package name. Routes, symbols and the
+  locale namespace are unchanged.
+
 ## 2026-10-28 — 0.2.1
 
 - Rename the npm package to `@yeaszn/dsh-neth4ck`. npm refuses new package names
