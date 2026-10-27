@@ -1,6 +1,6 @@
 {
   "name": "@yeaszn/dsh-neth4ck",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "description": "Play NetHack inside DeepSeek Harness: a Host plugin runs the NetHack WASM engine on a worker thread and exposes observe/act/respond tools to the model, with the live game as a central panel opened from a top-left \"@\" entry.",
   "license": "MIT",

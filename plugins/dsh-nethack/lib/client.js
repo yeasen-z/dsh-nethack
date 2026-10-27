@@ -19,7 +19,10 @@
 // from the host's `--dsw-alias-*` theme tokens.
 
 window.__ModuleLoader__.load({
-  id: "dsh-nethack",
+  // The client-modules registry keys a bundle by its package name, so this must
+  // match package.json. It is not the plugin id: slots, routes and storage keys
+  // below still use "dsh-nethack".
+  id: "@yeaszn/dsh-neth4ck",
   factory(require) {
     const React = require("react");
     const h = React.createElement;

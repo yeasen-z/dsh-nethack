@@ -19,7 +19,7 @@ import {
 } from "./navigate.mjs";
 import { GameSession, GAME_PRESET } from "./session.mjs";
 
-export const name = "dsh-nethack";
+export const name = "@yeaszn/dsh-neth4ck";
 
 /**
  * Services used opportunistically; the plugin stays valid without them.
