@@ -79,7 +79,7 @@ repository root:
 In **Plugins → Add plugin** type the package name, or ask the plugin manager:
 
 ```json
-{"action":"install_bundle","target":"@yeaszn/dsh-neth4ck@0.2.1"}
+{"action":"install_bundle","target":"@yeaszn/dsh-neth4ck@0.2.2"}
 ```
 
 The npm name is `@yeaszn/dsh-neth4ck`: the registry rejects a new package whose name
