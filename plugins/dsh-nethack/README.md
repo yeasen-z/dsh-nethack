@@ -25,12 +25,29 @@ Pick one of these. Each ends the same way: enable the NetHack plugin **and** its
 
 ### From the plugin market
 
-Add this URL as a plugin market source in DSH, then install `dsh-nethack` from
-the discovery page:
+Open **Plugins → Discover**, choose **Add index source** (on an empty Discover
+tab this is the empty state's button), and paste this URL:
 
 ```text
 https://raw.githubusercontent.com/yeasen-z/dsh-nethack/main/plugins/dsh-nethack/market/index.json
 ```
+
+Then type **`nethack`** in the search box and install the **NetHack** entry.
+
+Search covers names, authors, keywords, and every language of the titles,
+descriptions, categories and labels, so these all find it too:
+
+| Query | Matches because |
+|---|---|
+| `nethack` | package name, title and keyword |
+| `net` | prefix of those |
+| `地牢` or `游戏` | Chinese title and description |
+| `roguelike`, `wasm`, `agent`, `game` | keywords |
+| `yeasen-z` | author |
+
+Words in a query must **all** match, so `nethack postgres` returns nothing. If
+the source cannot be read, the **Index sources** dialog shows the read error
+next to it — the usual cause is no route to `raw.githubusercontent.com`.
 
 ### Straight from this repository
 

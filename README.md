@@ -35,6 +35,23 @@ engine compilation and no npm publication are needed.
 0.2.1-rc.3 was actually exercised) and a configured model/provider if you want
 the model to play — the manual controls work without one.
 
+### From the plugin market
+
+The easiest path. Open **Plugins → Discover**, choose **Add index source**, and
+paste:
+
+```text
+https://raw.githubusercontent.com/yeasen-z/dsh-nethack/main/plugins/dsh-nethack/market/index.json
+```
+
+Then search for **`nethack`** and install the **NetHack** entry. Search covers
+names, authors, keywords, and every language of the titles and descriptions, so
+`net` works as a prefix, and `地牢`, `游戏`, `roguelike`, `wasm`, `agent` and the
+author `yeasen-z` all match. Words are ANDed, so `nethack postgres` finds
+nothing.
+
+### From a clone
+
 ```sh
 git clone https://github.com/yeasen-z/dsh-nethack.git
 cd dsh-nethack
@@ -44,22 +61,28 @@ In your **DeepSeek Harness** session, ask:
 
 > Install the local bundle at `/absolute/path/to/dsh-nethack/plugins/dsh-nethack` using the plugin manager. Enable both the NetHack plugin and its nethack agent preset.
 
-The bundle can also be installed straight from this repository, without cloning,
-pinned to a commit:
+### Straight from git, pinned to a commit
+
+No clone needed. Pin the commit, because a branch would let the installed copy
+change under you:
 
 ```json
 {"action":"install_bundle","target":"git+https://github.com/yeasen-z/dsh-nethack.git#<commit>&path:/plugins/dsh-nethack"}
 ```
 
-The other install paths — plugin market, npm after publication — are in the
+`<commit>` is any full SHA from this repository; the newest one on the market
+page is the pin in [`market/index.json`](<plugins/dsh-nethack/market/index.json>)
+(`versions[0].source.commit`). The npm path and the release procedure are in the
 [bundle guide](<plugins/dsh-nethack/README.md>).
 
 Approve the installation and enable **both** the NetHack plugin and its
 `nethack` preset. Refresh DSH, then open the **@ / NetHack** panel.
 
-**Update:** run `git pull --ff-only`, then ask DSH to reinstall the same local
-bundle. Do not hand-edit your DSH profile or install the whole repository as an
-npm package: the installable bundle is the plugin subdirectory.
+**Update:** a market install carries an exact commit, so updating means installing
+the newer version from Discover. From a clone, run `git pull --ff-only` and ask
+DSH to reinstall the same local bundle. Do not hand-edit your DSH profile or
+install the whole repository as an npm package: the installable bundle is the
+plugin subdirectory.
 
 **Limits:** one live game per Host process. Switching panels preserves the same
 game conversation. Plugin reload keeps the live engine, but quitting the Host

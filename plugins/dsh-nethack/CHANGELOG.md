@@ -3,6 +3,14 @@
 All notable changes to the `dsh-nethack` bundle. The version here is the version
 in [`package.json`](package.json); the market index lists the same strings.
 
+## Unreleased
+
+- Document the plugin-market install path in both READMEs: the exact index-source
+  URL, the **Plugins → Discover → Add index source** steps, and the queries that
+  find the entry (`nethack`, its `net` prefix, `地牢`, `游戏`, the keywords and
+  the author). Verified against the published index with the Host's own search
+  implementation, including that multi-word queries are ANDed.
+
 ## 2026-10-27 — 0.2.0
 
 - Redesign the panel: the game is a full-height left column (HUD, map stage,
