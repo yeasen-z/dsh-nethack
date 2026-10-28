@@ -1,12 +1,20 @@
 # dsh-nethack
 
-Play NetHack in natural language, inside DeepSeek Harness. The game runs the real
-NetHack 3.6.7 engine (WASM). You and an AI partner drive the same character in the
-same game session.
+[![npm version](https://img.shields.io/npm/v/@yeaszn/dsh-neth4ck)](https://www.npmjs.com/package/@yeaszn/dsh-neth4ck) [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![dsh-plugin](https://img.shields.io/badge/topic-dsh--plugin-7a3ef3)](https://github.com/topics/dsh-plugin)
 
-![Chatting with the AI partner while it plays](<docs/screenshots/panel-ai-chat.png>)
+Maintained by [@yeasen-z](https://github.com/yeasen-z)
 
-![The pack tab](<docs/screenshots/panel-pack.png>)
+![dsh-nethack in DeepSeek Harness](<plugins/dsh-nethack/docs/profile.webp>)
+
+**Play NetHack in natural language, inside [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH).**
+
+The game runs the real NetHack 3.6.7 engine (WASM). You and an AI partner drive the
+same character in the same game session — play it yourself with the on-screen pad,
+or hand the character to the model and talk to it in an ordinary DSH conversation.
+
+![The panel in the dark theme](<plugins/dsh-nethack/docs/panel-ai-chat-dark.webp>)
+
+![The same panel in the light theme](<plugins/dsh-nethack/docs/panel-ai-chat-light.webp>)
 
 **Requirements:** DSH `>=0.2.1-rc.3 <0.3.0` (`engines.dsh`; only 0.2.1-rc.3 has been
 exercised). A configured model is needed only for the AI partner; the manual
@@ -35,7 +43,12 @@ refresh DSH, then open the **@ / NetHack** panel.
 
 The plugin market also lists it: **Plugins → Discover → Add index source**, paste
 `https://raw.githubusercontent.com/yeasen-z/dsh-nethack/main/plugins/dsh-nethack/market/index.json`,
-then search for `nethack`.
+then search for either `nethack` or the exact package name `@yeaszn/dsh-neth4ck`
+(search covers the entry's `name`, so the full package name matches directly).
+
+Both entries route through DSH's own npm handling: **Add plugin** with a package
+name and the market's install button fetch the same published tarball, so pick
+whichever you reach first.
 
 ## 2. Local development from git clone
 
@@ -94,7 +107,7 @@ to play; it describes the contracts, invariants and test harness under
 ## 1. Architecture
 
 ```mermaid
-flowchart TD
+flowchart LR
     UI["Web client: chat and direct controls"] --> Agent["LLM orchestration"]
     UI --> Core["Middleware: control, actions, skills, events"]
     Agent --> Core

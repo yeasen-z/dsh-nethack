@@ -1,15 +1,23 @@
 # dsh-nethack
 
-Play NetHack inside DeepSeek Harness. A panel opens the real NetHack 3.6.7 WASM
-engine; you can play it yourself with an on-screen direction pad, or hand the
-character to the model and talk to it in an ordinary DSH conversation.
+[![npm version](https://img.shields.io/npm/v/@yeaszn/dsh-neth4ck)](https://www.npmjs.com/package/@yeaszn/dsh-neth4ck) [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE) [![dsh-plugin](https://img.shields.io/badge/topic-dsh--plugin-7a3ef3)](https://github.com/topics/dsh-plugin)
+
+Maintained by [@yeasen-z](https://github.com/yeasen-z)
+
+![dsh-nethack in DeepSeek Harness](docs/profile.webp)
+
+**Play NetHack in natural language, inside [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH).**
+
+A panel opens the real NetHack 3.6.7 WASM engine; you can play it yourself with an
+on-screen direction pad, or hand the character to the model and talk to it in an
+ordinary DSH conversation.
 
 Hand-play and model-play drive the **same** engine: the panel always shows the
 game the model is playing, and the model sees the map you see.
 
-![The game on the left, the AI conversation on the right](../../docs/screenshots/panel-ai-chat.png)
+![The panel in the dark theme](docs/panel-ai-chat-dark.webp)
 
-![The pack tab](../../docs/screenshots/panel-pack.png)
+![The same panel in the light theme](docs/panel-ai-chat-light.webp)
 
 | | |
 |---|---|
@@ -32,7 +40,10 @@ tab this is the empty state's button), and paste this URL:
 https://raw.githubusercontent.com/yeasen-z/dsh-nethack/main/plugins/dsh-nethack/market/index.json
 ```
 
-Then type **`nethack`** in the search box and install the **NetHack** entry.
+Then type **`nethack`** — or the exact package name **`@yeaszn/dsh-neth4ck`** —
+in the search box and install the **NetHack** entry. The market installs through
+DSH's own npm handling, so this and **Add plugin** fetch the same published
+tarball.
 
 Search covers names, authors, keywords, and every language of the titles,
 descriptions, categories and labels, so these all find it too:
@@ -40,6 +51,7 @@ descriptions, categories and labels, so these all find it too:
 | Query | Matches because |
 |---|---|
 | `nethack` | package name, title and keyword |
+| `@yeaszn/dsh-neth4ck` | the entry's `name`, the npm package name |
 | `net` | prefix of those |
 | `地牢` or `游戏` | Chinese title and description |
 | `roguelike`, `wasm`, `agent`, `game` | keywords |
@@ -76,7 +88,10 @@ repository root:
 
 ### From npm
 
-In **Plugins → Add plugin** type the package name, or ask the plugin manager:
+npm is DSH's built-in install path: **Plugins → Add plugin** takes a package
+name (optionally `@version`), and the plugin market's install button resolves the
+same registry package, so either route works. Type the package name, or ask the
+plugin manager:
 
 ```json
 {"action":"install_bundle","target":"@yeaszn/dsh-neth4ck@0.2.2"}

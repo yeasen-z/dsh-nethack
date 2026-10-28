@@ -35,6 +35,7 @@
     "locale/*.json",
     "icon.svg",
     "README.md",
+    "docs/*.webp",
     "market/*.json",
     "scripts/market-index.mjs",
     "CHANGELOG.md"
